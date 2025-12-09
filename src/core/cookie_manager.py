@@ -130,9 +130,32 @@ class CookieManager:
         except WebDriverException as e:
             msg = getattr(e, "msg", str(e))
             logger.error(f"❌ Selenium WebDriver error: {msg}")
+
+            # Detecta exactamente el error de versión
+            if "only supports Microsoft Edge version" or "Unable to obtain driver for MicrosoftEdge" in msg:
+                logger.warning("🔄 Edge WebDriver desactualizado. Intentando actualizar...")
+
+                try:
+                    from src.core.edge_updater import EdgeDriverUpdater
+                    driver_updater = EdgeDriverUpdater(parent_widget=None)
+                    driver_updater.update()
+                    logger.info("🆗 WebDriver actualizado correctamente. Reintentando Selenium...")
+
+                    # Reintentar UNA sola vez
+                    return self.get_cookie_with_selenium(
+                        headless=headless,
+                        profile_dir=profile_dir,
+                        confirm_callback=confirm_callback
+                    )
+
+                except Exception as update_error:
+                    logger.error(f"❌ Error actualizando Edge WebDriver: {update_error}")
+
+            else:
+                logger.error("⚠️ Error de Selenium no relacionado con el driver desactualizado.")
         except Exception as e:
             logger.error(f"⚠️ Error inesperado obteniendo cookie con Selenium: {e}")
-        return None
+            return None
 
     def get_steam_cookie(self, confirm_callback: Optional[Callable[[str, str], bool]] = None) -> Optional[str]:
         if self.env_cookie:

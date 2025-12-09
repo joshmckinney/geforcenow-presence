@@ -17,6 +17,7 @@ from src.core.cookie_manager import CookieManager
 from src.core.presence_manager import PresenceManager
 from src.ui.tray_icon import SystemTrayIcon
 from src.core.updater import Updater
+from src.core.app_launcher import AppLauncher
 
 # Setup Logging
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -72,6 +73,13 @@ def main():
     updater = Updater()
     updater.check_for_updates(silent=True)
 
+    # 5.1 Launch Apps
+    AppLauncher.launch_discord()
+    AppLauncher.launch_geforce_now()
+
+    # 5.2 Update Edge Driver
+    #MOVE TO TRAY ICON
+
     # 6. Initialize Managers
     config_manager = ConfigManager(CONFIG_DIR / "config_path.txt")
     
@@ -90,6 +98,10 @@ def main():
         texts=texts,
         update_interval=update_interval
     )
+
+    # Cleanup residues from previous sessions
+    logger.info("Limpiando residuos de sesiones anteriores...")
+    presence_manager.close_fake_executable()
 
     # 7. Initialize UI
     tray_icon = SystemTrayIcon(presence_manager, texts)

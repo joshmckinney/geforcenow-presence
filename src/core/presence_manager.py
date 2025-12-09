@@ -4,25 +4,33 @@ import psutil
 import subprocess
 import tempfile
 import shutil
-import difflib
+try:
+    from rapidfuzz import fuzz, process
+except ImportError:
+    import difflib
+    fuzz = None
 import re
-import threading
 import sys
 from pathlib import Path
 from typing import Optional, Dict, List
+import threading
 
 from PyQt5.QtCore import QObject, pyqtSignal, QTimer
 
 from pypresence import Presence
-from src.core.utils import safe_json_load, save_json, CONFIG_DIR, BASE_DIR, DISCORD_CACHE_PATH, DISCORD_DETECTABLE_URL, DISCORD_CACHE_TTL, DISCORD_AUTO_APPLY_THRESHOLD, DISCORD_ASK_TIMEOUT
+from src.core.utils import safe_json_load, save_json, CONFIG_DIR, BASE_DIR, DISCORD_CACHE_PATH, DISCORD_DETECTABLE_URL, DISCORD_CACHE_TTL, DISCORD_AUTO_APPLY_THRESHOLD, DISCORD_ASK_TIMEOUT, IS_WINDOWS, IS_MACOS
 from src.core.steam_scraper import SteamScraper, find_steam_appid_by_name
 from src.core.cookie_manager import CookieManager
 
 # Import win32 libs inside methods or here if safe
-try:
-    import win32gui
-    import win32process
-except ImportError:
+if IS_WINDOWS:
+    try:
+        import win32gui
+        import win32process
+    except ImportError:
+        win32gui = None
+        win32process = None
+else:
     win32gui = None
     win32process = None
 
@@ -31,11 +39,26 @@ logger = logging.getLogger('geforce_presence')
 class PresenceManager(QObject):
     # Signals to communicate with UI
     log_message = pyqtSignal(str, str) # level, message
+    log_message = pyqtSignal(str, str) # level, message
     request_match_selection = pyqtSignal(str, list) # game_key, candidates
+    sync_progress = pyqtSignal(int, int) # current, total
+    sync_finished = pyqtSignal(int, int) # updated_count, total_processed
+    sync_error = pyqtSignal(str)
     
     def __init__(self, client_id: str, games_map: dict, cookie_manager: CookieManager, test_rich_url: str, texts: Dict,
                  update_interval: int = 10, keep_alive: bool = False):
         super().__init__()
+        # en __init__
+        self._match_cache_lock = threading.Lock()
+        self._apps_lock = threading.Lock()
+
+        # para evitar doble trabajo
+        self._ongoing_match_jobs = set()          # juegos con match en progreso
+        self._last_match_attempt = {}             # {game_key: timestamp}
+        self._match_attempt_counts = {}           # {game_key: count}
+        self.MATCH_ATTEMPT_COOLDOWN = 60         # segundos entre intentos para mismo juego
+
+        self._http_session = None
         self.client_id = client_id
         self.games_map = games_map
         self.cookie_manager = cookie_manager
@@ -48,13 +71,16 @@ class PresenceManager(QObject):
         self.fake_exec_path = None
         self.last_log_message = None
         self.rpc = None
+        self._connected_client_id = None
         
         self.scraper = SteamScraper(self.cookie_manager.env_cookie, test_rich_url)
 
         self.last_game = None
         self.forced_game = None
         self._last_forced_game = None
+
         self._force_stop_time = 0
+        self.current_game_start_time = None
         
         self._connect_rpc()
         
@@ -62,28 +88,161 @@ class PresenceManager(QObject):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.check_presence)
         
+        # Cache for match results
+        self._match_cache = {}
+        # Cache for normalized apps list
+        self._cached_apps_normalized = None
+        self._last_apps_ts = 0
+
+    def update_cookie(self, new_cookie: str):
+        if new_cookie:
+            self.cookie_manager.env_cookie = new_cookie
+            self.scraper.set_cookie(new_cookie)
+            logger.info("🍪 Cookie actualizada en PresenceManager y Scraper.")
+        
     def start_monitoring(self):
         logger.info("🟢 Iniciando monitor de presencia...")
         self.timer.start(self.update_interval * 1000)
+
+        # Solo iniciar sync si hay juegos con falta de datos y tras 5s para dejar iniciar la app
+        # REMOVED: Automatic sync on startup to save resources
+        # def maybe_start_sync():
+        #     time.sleep(5)
+        #     if self._should_sync():
+        #         threading.Thread(target=self.sync_missing_game_details, daemon=True).start()
+        # threading.Thread(target=maybe_start_sync, daemon=True).start()
+
+    def _should_sync(self):
+        for info in self.games_map.values():
+            if not info.get("client_id") or not info.get("executable_path"):
+                return True
+        return False
+
+    def check_discord_cache_status(self):
+        if not DISCORD_CACHE_PATH.exists():
+            return {"status": "MISSING", "hours": 0}
+        
+        try:
+            data = safe_json_load(DISCORD_CACHE_PATH)
+            ts = data.get("_ts", 0)
+            diff = time.time() - ts
+            hours = diff / 3600
+            if diff < DISCORD_CACHE_TTL:
+                return {"status": "FRESH", "hours": hours}
+            else:
+                return {"status": "STALE", "hours": hours}
+        except:
+            return {"status": "ERROR", "hours": 0}
+
+    def cancel_sync(self):
+        self._cancel_sync_flag = True
+
+    def sync_missing_game_details(self, force_download: bool = False):
+        """
+        Recorre todos los juegos en la configuración y, si faltan datos (client_id, executable_path),
+        intenta buscarlos en el caché de Discord.
+        """
+        logger.info(f"🔄 Iniciando sincronización masiva de juegos con Discord (Force={force_download})...")
+        self._cancel_sync_flag = False
+        try:
+            apps = self._fetch_discord_apps_cached(force_download=force_download)
+            if not apps:
+                logger.warning("⚠️ No hay caché de Discord disponible para sync.")
+                # Force download if cache is empty/missing
+                apps = self._fetch_discord_apps_cached(force_download=True)
+                if not apps:
+                     self.sync_error.emit("No se pudo obtener la lista de aplicaciones de Discord.")
+                     return
+
+            updated_count = 0
+            games_to_update = {}
+            
+            # Create a copy to iterate safely
+            current_games = dict(self.games_map)
+            total_games = len(current_games)
+            processed = 0
+            
+            for game_key, info in current_games.items():
+                if self._cancel_sync_flag:
+                    logger.info("🛑 Sincronización cancelada por el usuario.")
+                    break
+                
+                processed += 1
+                if processed % 5 == 0:
+                    self.sync_progress.emit(processed, total_games)
+
+                if not info.get("client_id") or not info.get("executable_path"):
+                    candidates = self._find_discord_matches(game_key, max_candidates=1)
+                    if candidates:
+                        top = candidates[0]
+                        if top.get("score", 0) >= DISCORD_AUTO_APPLY_THRESHOLD:
+                            # We found a match!
+                            match = top
+                            entry = info.copy()
+                            changed = False
+                            
+                            if match.get("exe") and not entry.get("executable_path"):
+                                entry["executable_path"] = match["exe"]
+                                changed = True
+                            
+                            if match.get("id") and not entry.get("client_id"):
+                                entry["client_id"] = match["id"]
+                                changed = True
+                            
+                            if changed:
+                                games_to_update[game_key] = entry
+                                updated_count += 1
+                                if updated_count % 10 == 0:
+                                    logger.debug(f"Sync progreso: {updated_count} juegos actualizados...")
+
+            if updated_count > 0:
+                # Bulk update
+                config_path = CONFIG_DIR / "games_config_merged.json"
+                # Reload to be safe before saving
+                games_config = safe_json_load(config_path) or {}
+                
+                for k, v in games_to_update.items():
+                    # Merge updates
+                    if k in games_config:
+                        games_config[k].update(v)
+                    else:
+                        games_config[k] = v
+                    # Also update memory map
+                    if k in self.games_map:
+                        self.games_map[k].update(v)
+
+                save_json(games_config, config_path)
+                logger.info(f"✅ Sincronización completada: {updated_count} juegos actualizados con datos de Discord.")
+            else:
+                logger.info("✅ Sincronización completada: No se requirieron actualizaciones.")
+            
+            self.sync_finished.emit(updated_count, total_games)
+
+        except Exception as e:
+            logger.error(f"❌ Error en sincronización masiva: {e}")
+            self.sync_error.emit(str(e))
 
     def stop_monitoring(self):
         self.timer.stop()
         self.close()
 
     def _connect_rpc(self, client_id: Optional[str] = None):
-        try:
-            if self.rpc:
-                try:
-                    self.rpc.close()
-                except Exception:
-                    pass
-            client_id = client_id or self.client_id
-            self.rpc = Presence(client_id)
-            self.rpc.connect()
-            logger.info(f"✅ Conectado a Discord RPC con client_id={client_id}")
-        except Exception as e:
-            logger.error(f"❌ Error conectando a Discord RPC: {e}")
-            self.rpc = None
+        if client_id !="1095416975028650046":
+            try:
+                if self.rpc:
+                    try:
+                        self.rpc.close()
+                    except Exception:
+                        pass
+                client_id = client_id or self.client_id
+                self.rpc = Presence(client_id)
+                self.rpc.connect()
+                self._connected_client_id = client_id
+                logger.info(f"✅ Conectado a Discord RPC con client_id={client_id}")
+            except Exception as e:
+                logger.error(f"❌ Error conectando a Discord RPC: {e}")
+                self.rpc = None
+                self._connected_client_id = None
 
     def stop_force_game(self):
         """Detiene el forzado de juego y vuelve a la detección automática"""
@@ -115,6 +274,7 @@ class PresenceManager(QObject):
             if self.rpc:
                 self.rpc.close()
                 self.rpc = None
+                self._connected_client_id = None
                 logger.info("📴 RPC desconectado temporalmente (modo forzar juego activo).")
         except Exception as e:
             logger.debug(f"Error al desconectar RPC temporalmente: {e}")
@@ -137,23 +297,44 @@ class PresenceManager(QObject):
         try:
             temp_dir_str = str(Path(tempfile.gettempdir()) / "discord_fake_game").lower()
             closed_any = False
-            if self.fake_proc and self.fake_proc.poll() is None:
-                logger.info(f"🛑 Cerrando ejecutable falso (PID {self.fake_proc.pid})")
-                self.fake_proc.terminate()
-                try:
-                    self.fake_proc.wait(timeout=3)
-                except Exception:
-                    self.fake_proc.kill()
-                closed_any = True
-            for proc in psutil.process_iter(["exe", "pid"]):
-                exe = proc.info.get("exe")
-                if exe and exe.lower().startswith(temp_dir_str):
-                    proc.terminate()
+            
+            if IS_MACOS:
+                # On macOS we look for processes running from the temp dir
+                for proc in psutil.process_iter(["pid", "exe", "cmdline"]):
                     try:
-                        proc.wait(timeout=3)
-                    except psutil.TimeoutExpired:
-                        proc.kill()
+                        exe = proc.info.get("exe") or ""
+                        cmdline = proc.info.get("cmdline") or []
+                        # Check if running from our temp dir
+                        if temp_dir_str in exe.lower() or any(temp_dir_str in arg.lower() for arg in cmdline):
+                             logger.info(f"🛑 Cerrando proceso falso (PID {proc.pid})")
+                             proc.terminate()
+                             try:
+                                 proc.wait(timeout=3)
+                             except psutil.TimeoutExpired:
+                                 proc.kill()
+                             closed_any = True
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        continue
+            else:
+                # Windows logic
+                if self.fake_proc and self.fake_proc.poll() is None:
+                    logger.info(f"🛑 Cerrando ejecutable falso (PID {self.fake_proc.pid})")
+                    self.fake_proc.terminate()
+                    try:
+                        self.fake_proc.wait(timeout=3)
+                    except Exception:
+                        self.fake_proc.kill()
                     closed_any = True
+                for proc in psutil.process_iter(["exe", "pid"]):
+                    exe = proc.info.get("exe")
+                    if exe and exe.lower().startswith(temp_dir_str):
+                        proc.terminate()
+                        try:
+                            proc.wait(timeout=3)
+                        except psutil.TimeoutExpired:
+                            proc.kill()
+                        closed_any = True
+                        
             if closed_any:
                 time.sleep(0.35)
                 logger.info("✅ Ejecutable falso cerrado")
@@ -167,81 +348,267 @@ class PresenceManager(QObject):
     def launch_fake_executable(self, executable_path: str):
         try:
             temp_dir = Path(tempfile.gettempdir()) / "discord_fake_game"
-            exec_full_path = temp_dir / executable_path
-            exec_full_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            if IS_MACOS:
+                # On macOS, executable_path might be "Something.app"
+                # We expect the user to have placed the .app in tools/ or we use a generic one?
+                # The user said: "el fake exe ya lo compilé en mac y ahora es .app"
+                # Let's assume we have a "dumb.app" in tools/ similar to "dumb.exe"
+                
+                app_name = Path(executable_path).name
+                if not app_name.endswith(".app"):
+                    # If discord asks for "game.exe", we might want to map it to "game.app" or just use a generic "FakeGame.app"
+                    # For simplicity, let's copy our generic dumb.app to "FakeGame.app"
+                    app_name = "FakeGame.app"
+                
+                exec_full_path = temp_dir / app_name
+                
+                # Clean previous if exists
+                if exec_full_path.exists():
+                    shutil.rmtree(exec_full_path)
+                
+                exec_full_path.parent.mkdir(parents=True, exist_ok=True)
+                
+                dumb_path = BASE_DIR / "tools" / "dumb.app"
+                if not dumb_path.exists():
+                     logger.error(f"❌ dumb.app no encontrado en {dumb_path}")
+                     return
 
-            if self.fake_exec_path == exec_full_path and self.fake_proc and self.fake_proc.poll() is None:
-                logger.debug(f"🚀 Ejecutable ya en ejecución: {exec_full_path}")
-                return
-            dumb_path = BASE_DIR / "tools" / "dumb.exe"
-            if not dumb_path.exists():
-                logger.error(f"❌ dumb.exe no encontrado en {dumb_path}")
-                return
-            if not exec_full_path.exists():
-                shutil.copy2(dumb_path, exec_full_path)
+                # Copy .app bundle
+                shutil.copytree(dumb_path, exec_full_path)
+                
+                logger.info(f"🚀 Ejecutando fake app: {exec_full_path}")
+                # Open the app using 'open' command
+                proc = subprocess.Popen(["open", "-n", "-a", str(exec_full_path)])
+                self.fake_proc = proc
+                self.fake_exec_path = exec_full_path
+                
             else:
-                if not self.wait_for_file_release(exec_full_path, timeout=3.0):
-                    logger.error(f"❌ El archivo {exec_full_path} sigue bloqueado por otro proceso")
+                # Windows logic
+                exec_full_path = temp_dir / executable_path
+                exec_full_path.parent.mkdir(parents=True, exist_ok=True)
+
+                if self.fake_exec_path == exec_full_path and self.fake_proc and self.fake_proc.poll() is None:
+                    logger.debug(f"🚀 Ejecutable ya en ejecución: {exec_full_path}")
                     return
-            logger.info(f"🚀 Ejecutando ejecutable falso: {exec_full_path}")
-            proc = subprocess.Popen([str(exec_full_path)], cwd=str(exec_full_path.parent))
-            self.fake_proc = proc
-            self.fake_exec_path = exec_full_path
+                dumb_path = BASE_DIR / "tools" / "dumb.exe"
+                if not dumb_path.exists():
+                    logger.error(f"❌ dumb.exe no encontrado en {dumb_path}")
+                    return
+                if not exec_full_path.exists():
+                    shutil.copy2(dumb_path, exec_full_path)
+                else:
+                    if not self.wait_for_file_release(exec_full_path, timeout=3.0):
+                        logger.error(f"❌ El archivo {exec_full_path} sigue bloqueado por otro proceso")
+                        return
+                logger.info(f"🚀 Ejecutando ejecutable falso: {exec_full_path}")
+                proc = subprocess.Popen([str(exec_full_path)], cwd=str(exec_full_path.parent))
+                self.fake_proc = proc
+                self.fake_exec_path = exec_full_path
+                
         except Exception as e:
             logger.error(f"❌ Error creando/ejecutando ejecutable falso: {e}")
 
-    def _fetch_discord_apps_cached(self):
+    def _get_http_session(self):
+        if self._http_session is None:
+            import requests
+            self._http_session = requests.Session()
+            self._http_session.headers.update({"User-Agent": "GeForcePresence/1.0"})
+        return self._http_session
+
+    def _fetch_discord_apps_cached(self, force_download: bool = False):
         try:
-            if DISCORD_CACHE_PATH.exists():
+            if not force_download and DISCORD_CACHE_PATH.exists():
                 data = safe_json_load(DISCORD_CACHE_PATH)
                 if data and isinstance(data, dict):
                     ts = data.get("_ts", 0)
-                    if time.time() - ts < DISCORD_CACHE_TTL:
-                        return data.get("apps", [])
+                    apps = data.get("apps", [])
+                    if apps and (time.time() - ts < DISCORD_CACHE_TTL):
+                        # update last apps ts for normalized cache invalidation
+                        self._last_apps_ts = ts
+                        return apps
 
-            import requests
-            resp = requests.get(DISCORD_DETECTABLE_URL, timeout=15)
+            sess = self._get_http_session()
+            logger.info("⬇️ Descargando lista de aplicaciones detectables de Discord...")
+            resp = sess.get(DISCORD_DETECTABLE_URL, timeout=15)
             if resp.status_code == 200:
                 apps = resp.json()
-                to_save = {"_ts": int(time.time()), "apps": apps}
-                try:
-                    save_json(to_save, DISCORD_CACHE_PATH)
-                except Exception:
-                    pass
-                return apps
+                if apps:
+                    to_save = {"_ts": int(time.time()), "apps": apps}
+                    try:
+                        save_json(to_save, DISCORD_CACHE_PATH)
+                        self._last_apps_ts = to_save["_ts"]
+                        logger.info(f"✅ Caché de Discord actualizado ({len(apps)} apps).")
+                    except Exception:
+                        pass
+                    return apps
+                else:
+                    logger.warning("⚠️ La respuesta de Discord no contiene aplicaciones.")
+            else:
+                logger.warning(f"⚠️ Error descargando de Discord: Status {resp.status_code}")
         except Exception as e:
             logger.debug(f"Error obteniendo detectable de Discord: {e}")
         return []
 
-    def _find_discord_matches(self, game_name: str, max_candidates: int = 5):
+
+    def _get_normalized_apps(self):
         apps = self._fetch_discord_apps_cached()
+        if not apps:
+            return []
+
+        # read ts from file to detect external changes
+        try:
+            data = safe_json_load(DISCORD_CACHE_PATH) or {}
+            ts = data.get("_ts", 0)
+        except Exception:
+            ts = 0
+
+        with self._apps_lock:
+            if self._cached_apps_normalized is None or ts != getattr(self, "_last_apps_ts", None):
+                norm = []
+                for app in apps:
+                    name = app.get("name", "") or ""
+                    aliases = app.get("aliases", []) or []
+                    n_name = name.lower()
+                    n_aliases = [a.lower() for a in aliases if a]
+                    norm.append({
+                        "original": app,
+                        "n_name": n_name,
+                        "n_aliases": n_aliases
+                    })
+                self._cached_apps_normalized = norm
+                self._last_apps_ts = ts
+        return self._cached_apps_normalized
+
+
+
+    def _cheap_prefilter(self, gnl, n_name, n_aliases):
+        # fast substring check (cheap)
+        if gnl in n_name or any(gnl in a for a in n_aliases):
+            return True
+        # token intersection (cheap)
+        tokens = set(gnl.split())
+        if tokens and tokens & set(n_name.split()):
+            return True
+        return False
+
+    def _find_discord_matches(self, game_name: str, max_candidates: int = 5):
+        if not game_name:
+            return []
+
+        cache_key = game_name.lower()
+        with self._match_cache_lock:
+            if cache_key in self._match_cache:
+                return self._match_cache[cache_key]
+
+        normalized_apps = self._get_normalized_apps()
+        if not normalized_apps:
+            return []
+
         candidates = []
-        gnl = (game_name or "").lower()
-        for app in apps:
-            name = app.get("name", "") or ""
-            aliases = app.get("aliases", []) or []
-            score_name = difflib.SequenceMatcher(None, gnl, name.lower()).ratio()
-            score_alias = 0.0
-            for a in aliases:
-                s = difflib.SequenceMatcher(None, gnl, (a or "").lower()).ratio()
-                if s > score_alias:
-                    score_alias = s
-            score = max(score_name, score_alias)
-            if score > 0.35:
-                exe = None
-                for e in app.get("executables", []) or []:
-                    if e.get("os") == "win32" and e.get("name"):
-                        exe = e.get("name")
-                        break
-                candidates.append({
-                    "name": name,
-                    "id": app.get("id"),
-                    "exe": exe,
-                    "score": score,
-                    "aliases": aliases
-                })
+        gnl = cache_key
+
+        logger.debug("🔍 Buscando coincidencias con Discord (optimizado)...")
+
+        if fuzz and hasattr(fuzz, "ratio"):
+            # rapidfuzz path
+            for item in normalized_apps:
+                app = item["original"]
+                n_name = item["n_name"]
+                n_aliases = item["n_aliases"]
+
+                # cheap prefilter
+                # cheap prefilter (safe: guard against missing attribute)
+                _prefilter = getattr(self, "_cheap_prefilter", None)
+                if _prefilter is not None:
+                    try:
+                        if not _prefilter(gnl, n_name, n_aliases):
+                            continue
+                    except Exception as _e:
+                        logger.debug(f"⚠️ _cheap_prefilter falló: {_e} — ignorando filtro barato y continuando.")
+                    # if _prefilter is None, we skip the cheap prefilter and let the fuzzy matching run
+
+
+                score_name = fuzz.ratio(gnl, n_name) / 100.0
+                score_alias = 0.0
+                if n_aliases:
+                    best_alias_score = 0
+                    for alias in n_aliases:
+                        s = fuzz.ratio(gnl, alias)
+                        if s > best_alias_score:
+                            best_alias_score = s
+                    score_alias = best_alias_score / 100.0
+
+                score = max(score_name, score_alias)
+                if score > 0.35:
+                    self._add_candidate(candidates, app, score)
+
+        else:
+            # difflib fallback with cheap prefilter
+            import difflib as _difflib
+            for item in normalized_apps:
+                app = item["original"]
+                n_name = item["n_name"]
+                n_aliases = item["n_aliases"]
+
+                # cheap prefilter (safe: guard against missing attribute)
+                _prefilter = getattr(self, "_cheap_prefilter", None)
+                if _prefilter is not None:
+                    try:
+                        if not _prefilter(gnl, n_name, n_aliases):
+                            continue
+                    except Exception as _e:
+                        logger.debug(f"⚠️ _cheap_prefilter falló: {_e} — ignorando filtro barato y continuando.")
+                # if _prefilter is None, we skip the cheap prefilter and let the fuzzy matching run
+
+
+                score_name = _difflib.SequenceMatcher(None, gnl, n_name).ratio()
+                score_alias = 0.0
+                for a in n_aliases:
+                    s = _difflib.SequenceMatcher(None, gnl, a).ratio()
+                    if s > score_alias:
+                        score_alias = s
+
+                score = max(score_name, score_alias)
+                if score > 0.35:
+                    self._add_candidate(candidates, app, score)
+
         candidates.sort(key=lambda x: x["score"], reverse=True)
-        return candidates[:max_candidates]
+        result = candidates[:max_candidates]
+
+        with self._match_cache_lock:
+            # guarda solo top-N para evitar crecimiento infinito
+            self._match_cache[cache_key] = result
+            # opcional: if len(self._match_cache) > 2000: clear or pop oldest -> implement LRU if needed
+
+        return result
+
+
+    def _add_candidate(self, candidates, app, score):
+        exe = None
+        for e in app.get("executables", []) or []:
+            if IS_WINDOWS:
+                if e.get("os") == "win32" and e.get("name"):
+                    exe = e.get("name")
+                    break
+            elif IS_MACOS:
+                if e.get("os") in ["macos", "darwin"] and e.get("name"):
+                    exe = e.get("name")
+                    break
+        
+        if not exe and IS_MACOS:
+             for e in app.get("executables", []) or []:
+                if e.get("os") == "win32" and e.get("name"):
+                    exe = e.get("name")
+                    break
+
+        candidates.append({
+            "name": app.get("name", ""),
+            "id": app.get("id"),
+            "exe": exe,
+            "score": score,
+            "aliases": app.get("aliases", [])
+        })
 
     def _apply_discord_match(self, game_key: str, match: dict):
         try:
@@ -253,38 +620,83 @@ class PresenceManager(QObject):
             entry = games_config.get(game_key, {}) or {}
 
             if match.get("exe"):
-                entry.setdefault("executable_path", match["exe"])
+                current_exe = entry.get("executable_path")
+                if not current_exe:
+                    entry["executable_path"] = match["exe"]
+            
             if match.get("id"):
-                entry.setdefault("client_id", match["id"])
+                current_id = entry.get("client_id")
+                if not current_id:
+                    entry["client_id"] = match["id"]
+            
             games_config[game_key] = entry
             save_json(games_config, config_path)
             self.games_map = games_config
+            
+            # Update forced_game if it matches
+            if self.forced_game and self.forced_game.get("name") == game_key:
+                if match.get("id") and not self.forced_game.get("client_id"):
+                    self.forced_game["client_id"] = match["id"]
+                if match.get("exe") and not self.forced_game.get("executable_path"):
+                    self.forced_game["executable_path"] = match["exe"]
+                logger.info(f"🔄 Forced game '{game_key}' updated live with Discord data.")
+
             logger.info(f"✅ Discord match aplicado para '{game_key}': id={match.get('id')}, exe={match.get('exe')}")
             return True
         except Exception as e:
             logger.error(f"❌ Error aplicando discord match: {e}")
             return False
 
-    def _ask_discord_match_for_new_game(self, game_key: str):
+    def _ensure_discord_match(self, game_key: str):
         try:
-            candidates = self._find_discord_matches(game_key, max_candidates=6)
-            if not candidates:
-                logger.info(f"ℹ️ No se encontraron matches en Discord para '{game_key}'")
-                return
-            top = candidates[0]
-            logger.debug(f"Discord top candidate for '{game_key}': {top.get('name')} (score={top.get('score'):.2f})")
-            
-            if top.get("score", 0) >= DISCORD_AUTO_APPLY_THRESHOLD:
-                applied = self._apply_discord_match(game_key, top)
-                if applied:
-                    logger.info(f"🔁 Aplicado automaticamente match Discord: {top.get('name')} (score {top.get('score'):.2f})")
+            if not game_key or not game_key.strip():
                 return
 
-            # Emit signal to request user selection in UI
-            self.request_match_selection.emit(game_key, candidates)
-            
+            # Check attempt limit
+            attempts = self._match_attempt_counts.get(game_key, 0)
+            if attempts >= 2:
+                logger.debug(f"🛑 Límite de intentos de match alcanzado para '{game_key}' ({attempts}).")
+                return
+
+            now = time.time()
+            last = self._last_match_attempt.get(game_key, 0)
+            if now - last < self.MATCH_ATTEMPT_COOLDOWN:
+                logger.debug(f"Skipping Discord match for {game_key}: cooldown active ({now-last:.1f}s).")
+                return
+
+            # Mark attempt
+            self._last_match_attempt[game_key] = now
+            self._match_attempt_counts[game_key] = attempts + 1
+
+            # Check if already in progress
+            if game_key in self._ongoing_match_jobs:
+                logger.debug(f"Match already in progress for {game_key}")
+                return
+
+            # run match in background but mark as ongoing
+            def run():
+                try:
+                    self._ongoing_match_jobs.add(game_key)
+                    candidates = self._find_discord_matches(game_key, max_candidates=6)
+                    if not candidates:
+                        logger.info(f"ℹ️ No se encontraron matches en Discord para '{game_key}'")
+                        return
+                    top = candidates[0]
+                    if top.get("score", 0) >= DISCORD_AUTO_APPLY_THRESHOLD:
+                        applied = self._apply_discord_match(game_key, top)
+                        if applied:
+                            logger.info(f"🔁 Aplicado automaticamente match Discord: {top.get('name')} (score {top.get('score'):.2f})")
+                        return
+                    self.request_match_selection.emit(game_key, candidates)
+                except Exception as e:
+                    logger.debug(f"Error en ask_discord_match_for_new_game: {e}")
+                finally:
+                    self._ongoing_match_jobs.discard(game_key)
+
+            threading.Thread(target=run, daemon=True).start()
+
         except Exception as e:
-            logger.debug(f"Error en ask_discord_match_for_new_game: {e}")
+            logger.debug(f"Error asegurando discord match: {e}")
 
     # Slot to receive the selected match from UI
     def on_match_selected(self, game_key: str, match: dict):
@@ -295,21 +707,6 @@ class PresenceManager(QObject):
 
     def check_presence(self):
         try:
-            if not self.is_geforce_running():
-                if getattr(self, "forced_game", None):
-                    logger.info("Modo forzado desactivado ...")
-                    self.forced_game = None
-                if self.last_game is not None:
-                    logger.info("⚠️ GeForce NOW no está en ejecución — limpiando presencia.")
-                    try:
-                        if self.rpc: self.rpc.clear()
-                    except Exception:
-                        pass
-                    self.close_fake_executable()
-                    self.last_game = None
-                    self.last_log_message = None
-                return
-
             game = self.find_active_game()
             self.update_presence(game)
 
@@ -327,78 +724,122 @@ class PresenceManager(QObject):
 
     def find_active_game(self) -> Optional[dict]:
         try:
-            if not win32gui:
-                logger.error("win32gui not available")
-                return None
-                
-            hwnds = []
-            win32gui.EnumWindows(lambda h, p: p.append(h) if win32gui.IsWindowVisible(h) else None, hwnds)
-            last_title = getattr(self, "_last_window_title", None)
             title = None
-            for hwnd in hwnds:
-                try:
-                    _, pid = win32process.GetWindowThreadProcessId(hwnd)
-                    proc_name = psutil.Process(pid).name().lower()
-                except Exception:
-                    continue
-                if "geforcenow" not in proc_name:
-                    continue
-                title = win32gui.GetWindowText(hwnd)
-                if title == last_title:
-                    pass
-                else:
-                    setattr(self, "_last_window_title", title)
-                if title == None:
-                    self.log_once("⚠️ GeForce NOW no está abierto")
-
-                clean = re.sub(r'\s*(en|on|in|via)?\s*GeForce\s*NOW.*$', '', title, flags=re.IGNORECASE).strip()
-                clean = re.sub(r'[®™]', '', clean).strip()
+            
+            if IS_WINDOWS:
+                if not win32gui:
+                    logger.error("win32gui not available")
+                    return None
+                    
+                hwnds = []
+                win32gui.EnumWindows(lambda h, p: p.append(h) if win32gui.IsWindowVisible(h) else None, hwnds)
+                last_title = getattr(self, "_last_window_title", None)
                 
-                last_clean = getattr(self, "_last_clean_title", None)
-                if clean != last_clean:
-                    setattr(self, "_last_clean_title", clean)
-                appid = None 
-                for game_name, info in self.games_map.items():
-                    if clean.lower() == game_name.lower():
-                        if not info.get("steam_appid"):
-                            appid = find_steam_appid_by_name(clean)
-                            if appid:
-                                info["steam_appid"] = appid
-                                config_path = CONFIG_DIR / "games_config_merged.json"
-                                games_config = safe_json_load(config_path) or {}
-                                games_config[game_name]["steam_appid"] = appid
-                                save_json(games_config, config_path)
-                                logger.info(f"✅ Steam AppID actualizado en JSON para: {game_name} -> {appid}")
-                                self.games_map = games_config
-                        return info
-                appid = find_steam_appid_by_name(clean)
-                new_game = {
-                    "name": clean,
-                    "steam_appid": appid,
-                    "image": "steam"
-                }
-                self.games_map[clean] = new_game
-                config_path = CONFIG_DIR / "games_config_merged.json"
-                games_config = safe_json_load(config_path) or {}
-                games_config[clean] = new_game
-                save_json(games_config, config_path)
-                updated = self.games_map.get(clean)
-                if updated:
-                    new_game = updated
-                logger.info(f"🆕 Juego agregado a config: {clean} (AppID: {appid})")
-                self.games_map = games_config
+                for hwnd in hwnds:
+                    try:
+                        _, pid = win32process.GetWindowThreadProcessId(hwnd)
+                        proc_name = psutil.Process(pid).name().lower()
+                    except Exception:
+                        continue
+                    if "geforcenow" not in proc_name:
+                        continue
+                    title = win32gui.GetWindowText(hwnd)
+                    break
+            
+            elif IS_MACOS:
+                # Use AppleScript to get the window title of GeForce NOW
+                # We assume the process name is "GeForceNOW" or similar.
+                # The AppleScript gets the window 1 of process "GeForceNOW"
+                cmd = """
+                tell application "System Events"
+                    set procName to "GeForceNOW"
+                    if exists process procName then
+                        try
+                            return name of window 1 of process procName
+                        on error
+                            return ""
+                        end try
+                    end if
+                    return ""
+                end tell
+                """
+                result = subprocess.run(["osascript", "-e", cmd], capture_output=True, text=True)
+                if result.returncode == 0:
+                    title = result.stdout.strip()
+            
+            if not title:
+                self.log_once("⚠️ GeForce NOW no está abierto (o sin ventana activa)")
+                return None
 
-                try:
-                    threading.Thread(
-                        target=self._ask_discord_match_for_new_game,
-                        args=(clean,),
-                        daemon=True
-                    ).start()
-                except Exception as e:
-                    logger.debug(f"no se pudo iniciar hilo de discord-match: {e}")
-                return new_game
+            last_title = getattr(self, "_last_window_title", None)
+            if title == last_title:
+                pass
+            else:
+                setattr(self, "_last_window_title", title)
 
-            return {'name': title, 'image': 'geforce_default', 'client_id': self.client_id}
+            clean = re.sub(r'\s*(en|on|in|via)?\s*GeForce\s*NOW.*$', '', title, flags=re.IGNORECASE).strip()
+            clean = re.sub(r'[®™]', '', clean).strip()
+            
+            last_clean = getattr(self, "_last_clean_title", None)
+            if clean != last_clean:
+                setattr(self, "_last_clean_title", clean)
+            if not clean:
+                return None
+
+            appid = None 
+            for game_name, info in self.games_map.items():
+                if clean.lower() == game_name.lower():
+                    if not info.get("steam_appid"):
+                        appid = find_steam_appid_by_name(clean)
+                        if appid:
+                            info["steam_appid"] = appid
+                            config_path = CONFIG_DIR / "games_config_merged.json"
+                            games_config = safe_json_load(config_path) or {}
+                            games_config.setdefault(game_name, {})
+                            games_config[game_name]["steam_appid"] = appid
+                            save_json(games_config, config_path)
+                            logger.info(f"✅ Steam AppID actualizado en JSON para: {game_name} -> {appid}")
+                            self.games_map = games_config
+                    
+                    # Check if missing client_id or executable_path
+                    if not info.get("client_id") or not info.get("executable_path"):
+                        try:
+                            threading.Thread(
+                                target=self._ensure_discord_match,
+                                args=(clean,),
+                                daemon=True
+                            ).start()
+                        except Exception as e:
+                            logger.debug(f"no se pudo iniciar hilo de discord-match (update): {e}")
+
+                    return info
+            appid = find_steam_appid_by_name(clean)
+            new_game = {
+                "name": clean,
+                "steam_appid": appid,
+                "image": "steam"
+            }
+            self.games_map[clean] = new_game
+            config_path = CONFIG_DIR / "games_config_merged.json"
+            games_config = safe_json_load(config_path) or {}
+            games_config[clean] = new_game
+            save_json(games_config, config_path)
+            updated = self.games_map.get(clean)
+            if updated:
+                new_game = updated
+            logger.info(f"🆕 Juego agregado a config: {clean} (AppID: {appid})")
+            self.games_map = games_config
+
+            try:
+                threading.Thread(
+                    target=self._ensure_discord_match,
+                    args=(clean,),
+                    daemon=True
+                ).start()
+            except Exception as e:
+                logger.debug(f"no se pudo iniciar hilo de discord-match: {e}")
+            return new_game
+
         except Exception as e:
             if str(e) == "cannot access local variable 'title' where it is not associated with a value":
                 self.log_once(f"⚠️ GeForce NOW está cerrado")
@@ -414,8 +855,13 @@ class PresenceManager(QObject):
         try:
             for proc in psutil.process_iter(attrs=['name']):
                 name = (proc.info.get('name') or "").lower()
-                if "geforcenow" in name:
-                    return True
+                if IS_WINDOWS:
+                    if "geforcenow" in name:
+                        return True
+                elif IS_MACOS:
+                    # Verify exact process name on macOS
+                    if "geforcenow" in name: # Likely "GeForceNOW"
+                        return True
         except Exception as e:
             logger.debug(f"Error comprobando procesos: {e}")
         return False
@@ -460,20 +906,18 @@ class PresenceManager(QObject):
             merged = {**defaults, **current_game}
             current_game = merged
 
-        if current_game and current_game.get("name") is None:
-            self.log_once("🛑 GeForce NOW está cerrado")
-            self.close_fake_executable()
-            try:
-                if self.rpc: self.rpc.clear()
-            except Exception:
-                pass
-            self.last_game = None
-            return
+        # Check if missing data and ensure match
+        if current_game:
+            if not current_game.get("client_id") or not current_game.get("executable_path"):
+                self._ensure_discord_match(current_game["name"])
 
         if game_changed:
             self.close_fake_executable()
             if current_game and current_game.get("executable_path"):
                 self.launch_fake_executable(current_game["executable_path"])
+            
+            if current_game:
+                self.current_game_start_time = int(time.time())
 
         if not current_game:
             if self.last_game is not None:
@@ -482,6 +926,7 @@ class PresenceManager(QObject):
                 except Exception:
                     pass
                 self.last_game = None
+                self.current_game_start_time = None
             return
 
         client_id = current_game.get("client_id") or self.client_id
@@ -497,15 +942,26 @@ class PresenceManager(QObject):
                 should_change_client = False
                 client_id = self.client_id
 
-        if self.rpc and getattr(self.rpc, "client_id", None) != client_id and should_change_client:
+        # Determine if we need to connect/reconnect
+        # Condition 1: RPC is None (disconnected)
+        # Condition 2: Client ID changed and we are allowed to change it
+        current_connected_id = getattr(self, "_connected_client_id", None)
+        
+        if (self.rpc is None) or (current_connected_id != client_id and should_change_client):
+            logger.debug(f"🔄 RPC Update needed. Current: {current_connected_id}, Target: {client_id}, RPC Object: {self.rpc is not None}")
             try:
-                self.rpc.clear()
-                self.rpc.close()
+                if self.rpc:
+                    self.rpc.clear()
+                    self.rpc.close()
             except Exception:
                 pass
+            
             if client_id:
                 self._connect_rpc(client_id)
-                self.log_once(f"🔁 Cambiado client_id a {client_id}")
+                if current_connected_id != client_id:
+                    self.log_once(f"🔁 Cambiado client_id a {client_id}")
+                else:
+                    self.log_once(f"🔁 Reconectado client_id {client_id}")
 
         def split_status(s):
             for sep in ["|", " - ", ":", "›", ">"]:
@@ -520,7 +976,7 @@ class PresenceManager(QObject):
             if group_size == 1:
                 state = self.texts.get("playing_solo", "Playing solo")
             else:
-                state = self.texts.get("playing_in_group", f"On a Group")
+                state = self.texts.get("playing_in_group", "On a Group")
         
         rn = (current_game.get('name') or '').strip().lower()
         if rn in ["geforce now", "games", ""]:
@@ -532,17 +988,39 @@ class PresenceManager(QObject):
             return
 
         party_size_data = None
-        if group_size is not None:
-            party_size_data = [group_size, 4]
-        elif current_game.get("party_size"):
-            party_size_data = current_game.get("party_size")
+        
+        # Determine Current Size
+        # If scraper gives a specific group size (e.g. 2, 3), use it.
+        # If scraper says "Playing in Group" but no size (rare but possible), default to 1 for safety or 2?
+        # Actually scrapers usually give size if they detect "Group".
+        # If group_size is None, it means solo or not detected.
+        
+        current_size = group_size if group_size else 1
+        
+        # Determine Max Size
+        # Check config for 'max_party_size'
+        max_size = 4 # Default
+        if current_game.get("max_party_size"):
+            try:
+                max_size = int(current_game.get("max_party_size"))
+            except:
+                pass
+        
+        # If we have a group OR a custom max size, we construct the party_size array
+        if group_size is not None or current_game.get("max_party_size"):
+             party_size_data = [current_size, max_size]
+
+        # Handle legacy or alternative 'party_size' key if present (backward compatibility or manual override)
+        if not party_size_data and current_game.get("party_size"):
+             party_size_data = current_game.get("party_size")
 
         presence_data = {
             "details": details,
             "state": state,
             "large_image": current_game.get('image', 'steam'),
             "large_text": current_game.get('name'),
-            "small_image": current_game.get("icon_key") if current_game.get("icon_key") else None
+            "small_image": current_game.get("icon_key") if current_game.get("icon_key") else None,
+            "start": self.current_game_start_time
         }
         
         if party_size_data:
@@ -581,11 +1059,45 @@ class PresenceManager(QObject):
                 return False
         return True
     
+    def set_max_party_size(self, max_size: int):
+        """
+        Sets the max party size for the currently active (or forced) game.
+        Updates the configuration and triggers a presence update.
+        """
+        game = self.forced_game or self.last_game
+        if not game:
+            return False
+            
+        game_key = game.get("name")
+        if not game_key:
+            return False
+            
+        # Update memory map
+        # We only update 'max_party_size' key
+        if game_key in self.games_map:
+            self.games_map[game_key]["max_party_size"] = max_size
+        
+        # Update configuration file
+        config_path = CONFIG_DIR / "games_config_merged.json"
+        games_config = safe_json_load(config_path) or {}
+        
+        if game_key in games_config:
+            games_config[game_key]["max_party_size"] = max_size
+        else:
+            games_config[game_key] = {"max_party_size": max_size}
+            
+        save_json(games_config, config_path)
+        logger.info(f"👥 Max party size updated for {game_key}: {max_size}")
+        
+        self.update_presence(game)
+        return True
+
     def close(self):
         if self.rpc:
             try:
                 self.rpc.clear()
                 self.rpc.close()
+                self._connected_client_id = None
                 self.close_fake_executable()
                 logger.info("🔴 Discord RPC cerrado correctamente.")
             except Exception:

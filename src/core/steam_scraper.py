@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 logger = logging.getLogger('geforce_presence')
 
-class SteamScraper:
+class SteamScraper: 
     def __init__(self, steam_cookie: Optional[str], test_rich_url: str):
         self.test_rich_url = test_rich_url
         self.session = requests.Session()
@@ -20,6 +20,13 @@ class SteamScraper:
         })
         self._last_presence = None
         self._last_group_size = None
+        
+    def set_cookie(self, steam_cookie: str):
+        if steam_cookie:
+            self.session.cookies.set('steamLoginSecure', steam_cookie, domain='steamcommunity.com')
+            self._steam_expired_warned = False
+            logger.info("🍪 Cookie de Steam actualizada en el Scraper.")
+
 
     def get_rich_presence(self) -> Tuple[Optional[str], Optional[int]]:
         """
@@ -47,21 +54,36 @@ class SteamScraper:
 
             soup = BeautifulSoup(resp.text, 'html.parser')
             
-            # 1. Obtener el texto de Rich Presence (filtrando los que contienen '#')
-            b = soup.find('b', string=re.compile(r'Localized Rich Presence Result', re.IGNORECASE))
+            # 1. Obtener el texto de Rich Presence
+            # Intentar primero con "Localized Rich Presence Result"
             rich_presence_text = None
+            b = soup.find('b', string=re.compile(r'Localized Rich Presence Result', re.IGNORECASE))
             if b:
                 text = (b.next_sibling or "").strip()
-                if text and "No rich presence keys set" not in text:
-                    # Filtrar texto que contiene '#'
-                    if '#' not in text:
-                        rich_presence_text = text
-                        if text != self._last_presence:
-                            self._last_presence = text
-                            logger.info(f"🎮 Rich Presence (nuevo): {text}")
-                    else:
-                        logger.debug(f"❌ Rich Presence filtrado (contiene '#'): {text}")
-                        rich_presence_text = None
+                if text and '#' not in text and "No rich presence keys set" not in text:
+                    rich_presence_text = text
+
+            # Si falla, intentar buscar "status" en la tabla (fallback mas robusto)
+            if not rich_presence_text:
+                rows = soup.find_all('tr')
+                for row in rows:
+                    cells = row.find_all('td')
+                    if len(cells) >= 2:
+                        key = cells[0].get_text().strip().lower()
+                        if key == 'status':
+                            val = cells[1].get_text().strip()
+                            if val and '#' not in val:
+                                rich_presence_text = val
+                                logger.debug(f"✅ Rich Presence encontrado via fallback 'status': {val}")
+                                break
+
+            if rich_presence_text:
+                if rich_presence_text != self._last_presence:
+                    self._last_presence = rich_presence_text
+                    logger.info(f"🎮 Rich Presence (nuevo): {rich_presence_text}")
+            else:
+                 # Si tras ambos intentos es nulo, registrar si hubo cambio (para no floodear)
+                 pass
             
             # 2. Extraer steam_player_group_size
             group_size = self._extract_group_size(soup)
@@ -94,7 +116,7 @@ class SteamScraper:
                             return group_size
             
             # Si no se encuentra steam_player_group_size, buscar patrones alternativos
-            group_size = self._find_alternative_group_size(soup)
+            #group_size = self._find_alternative_group_size(soup)
             return group_size
             
         except Exception as e:

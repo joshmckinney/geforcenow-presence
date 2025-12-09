@@ -1,8 +1,9 @@
 import logging
 import threading
 import time
-from PyQt5.QtWidgets import QSystemTrayIcon, QMenu, QAction, QApplication, QMessageBox
+from PyQt5.QtWidgets import QSystemTrayIcon, QMenu, QAction, QApplication, QMessageBox, QProgressDialog
 from PyQt5.QtGui import QIcon
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QDialog
 from src.core.utils import ASSETS_DIR, LOG_FILE
 from src.core.app_launcher import AppLauncher
@@ -22,7 +23,7 @@ class SystemTrayIcon(QSystemTrayIcon):
     def __init__(self, presence_manager, texts, parent=None):
         super().__init__(parent)
         self.pm = presence_manager
-        self.texts = texts
+        TEXTS = texts
         
         self.setIcon(QIcon(str(ASSETS_DIR / "geforce.ico")))
         self.setToolTip("GeForce NOW Presence")
@@ -34,12 +35,13 @@ class SystemTrayIcon(QSystemTrayIcon):
         # Connect signals
         self.pm.request_match_selection.connect(self.on_match_selection_requested)
         self.activated.connect(self.on_activated)
+        self.menu.aboutToShow.connect(self.update_menu)
 
     def create_menu(self):
         self.menu.clear()
         
         # Force Game
-        force_text = self.texts.get("tray_force_game", "Force game...")
+        force_text = TEXTS.get("tray_force_game", "Force game...")
         if self.pm.forced_game:
             game_name = self.pm.forced_game.get('name', 'Unknown')
             if len(game_name) > 20:
@@ -51,24 +53,39 @@ class SystemTrayIcon(QSystemTrayIcon):
         self.menu.addAction(force_action)
         
         # Obtain Cookie
-        cookie_action = QAction(self.texts.get("tray_get_cookie", "Obtain Steam cookie"), self.menu)
+        cookie_action = QAction(TEXTS.get("tray_get_cookie", "Obtain Steam cookie"), self.menu)
         cookie_action.triggered.connect(self.obtain_cookie)
         self.menu.addAction(cookie_action)
         
         # Open GeForce
-        open_gf_action = QAction(self.texts.get("tray_open_geforce", "Open GeForce NOW"), self.menu)
+        open_gf_action = QAction(TEXTS.get("tray_open_geforce", "Open GeForce NOW"), self.menu)
         open_gf_action.triggered.connect(self.open_geforce)
         self.menu.addAction(open_gf_action)
         
+        # Set Max Party Size
+        DEFAULT_CLIENT_ID = "1095416975028650046"
+        current_cid = getattr(self.pm, "_connected_client_id", None)
+        
+        if current_cid and current_cid != DEFAULT_CLIENT_ID:
+            party_action = QAction(TEXTS.get("tray_set_max_party_size", "Set Max Party Size..."), self.menu)
+            party_action.triggered.connect(self.set_max_party_size_dialog)
+            self.menu.addAction(party_action)
+
+        # Sync Games
+        sync_text = TEXTS.get("tray_sync_games", "Sync games")
+        sync_action = QAction(sync_text, self.menu)
+        sync_action.triggered.connect(self.sync_games)
+        self.menu.addAction(sync_action)
+        
         # Open Logs
-        logs_action = QAction(self.texts.get("tray_open_logs", "Open logs"), self.menu)
+        logs_action = QAction(TEXTS.get("tray_open_logs", "Open logs"), self.menu)
         logs_action.triggered.connect(self.open_logs)
         self.menu.addAction(logs_action)
         
         self.menu.addSeparator()
         
         # Exit
-        exit_action = QAction(self.texts.get("tray_exit", "Exit"), self.menu)
+        exit_action = QAction(TEXTS.get("tray_exit", "Exit"), self.menu)
         exit_action.triggered.connect(QApplication.instance().quit)
         self.menu.addAction(exit_action)
 
@@ -86,7 +103,7 @@ class SystemTrayIcon(QSystemTrayIcon):
             self.update_menu()
             return
 
-        dialog = AskGameDialog(title="Forzar juego", message="Nombre del juego:")
+        dialog = AskGameDialog(title=TEXTS.get("force_game", "Force Game"), message=TEXTS.get("game_name", "Game Name:"))
         if dialog.exec_() == QDialog.Accepted:
             game_name = dialog.get_game_name()
             if not game_name:
@@ -162,9 +179,10 @@ class SystemTrayIcon(QSystemTrayIcon):
 
         cookie = self.pm.cookie_manager.ask_and_obtain_cookie(confirm_callback)
         if cookie:
-            self.showMessage(TEXTS.get("cookie_saved", "Cookie saved"), QSystemTrayIcon.Information, 3000)
+            self.pm.update_cookie(cookie)
+            self.showMessage(TEXTS.get("cookie_title", "Cookie"), TEXTS.get("cookie_saved", "Cookie saved"), QSystemTrayIcon.Information, 3000)
         else:
-            self.showMessage(TEXTS.get("cookie_invalid", "Cookie invalid"), QSystemTrayIcon.Warning, 3000)
+            self.showMessage(TEXTS.get("cookie_title", "Cookie"), TEXTS.get("cookie_invalid", "Cookie invalid"), QSystemTrayIcon.Warning, 3000)
 
     def open_geforce(self):
         AppLauncher.launch_geforce_now()
@@ -174,7 +192,35 @@ class SystemTrayIcon(QSystemTrayIcon):
         if LOG_FILE.exists():
             os.startfile(LOG_FILE)
         else:
-            self.showMessage(TEXTS.get("open_logs_error", "No log file found."), QSystemTrayIcon.Warning, 3000)
+            self.showMessage(TEXTS.get("logs_title", "Logs"), TEXTS.get("open_logs_error", "No log file found."), QSystemTrayIcon.Warning, 3000)
+
+    def set_max_party_size_dialog(self):
+        from PyQt5.QtWidgets import QInputDialog
+        
+        if not self.pm.last_game and not self.pm.forced_game:
+            QMessageBox.warning(None, "Party Size", "No hay ningún juego en ejecución (ni forzado).")
+            return
+
+        current_max = 4
+        
+        # Try to get current values
+        game = self.pm.forced_game or self.pm.last_game
+        if game:
+            game_key = game.get("name")
+            if game_key and game_key in self.pm.games_map:
+                existing = self.pm.games_map[game_key].get("max_party_size")
+                if existing:
+                    current_max = int(existing)
+
+        i, ok = QInputDialog.getInt(None, "Set Party Size", 
+                                    f"Tamaño MÁXIMO del grupo:", 
+                                    current_max, 1, 100, 1)
+        if ok:
+            success = self.pm.set_max_party_size(i)
+            if success:
+                self.showMessage("Party Size", f"Tamaño máximo actualizado a {i}", QSystemTrayIcon.Information, 2000)
+            else:
+                self.showMessage("Error", "No se pudo actualizar el tamaño del grupo.", QSystemTrayIcon.Warning, 3000)
 
     def on_match_selection_requested(self, game_key, candidates):
         # This is called from PresenceManager when it finds a new game and needs user input
@@ -184,3 +230,60 @@ class SystemTrayIcon(QSystemTrayIcon):
             self.pm.on_match_selected(game_key, dialog.selected_match)
         else:
             self.pm.on_match_selected(game_key, None)
+
+    def sync_games(self):
+        status = self.pm.check_discord_cache_status()
+        force = False
+        
+        if status["status"] == "FRESH":
+            hours = status["hours"]
+            msg = f"El archivo de caché se actualizó hace {hours:.1f} horas.\n¿Desea actualizarlo nuevamente?"
+            reply = QMessageBox.question(None, "Sincronizar Juegos", msg, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply == QMessageBox.Yes:
+                force = True
+            # If No, we proceed with force=False (just local matching)
+        
+        # Create Progress Dialog
+        self.progress = QProgressDialog("Sincronizando juegos...", "Cancelar", 0, 100, None)
+        self.progress.setWindowModality(Qt.WindowModal)
+        self.progress.setMinimumDuration(0)
+        self.progress.setValue(0)
+        self.progress.canceled.connect(self.on_sync_canceled)
+        self.progress.show()
+        
+        # Connect signals
+        try:
+            self.pm.sync_progress.disconnect()
+            self.pm.sync_finished.disconnect()
+            self.pm.sync_error.disconnect()
+        except:
+            pass
+
+        self.pm.sync_progress.connect(self.on_sync_progress)
+        self.pm.sync_finished.connect(self.on_sync_finished)
+        self.pm.sync_error.connect(self.on_sync_error)
+        
+        # Start thread
+        threading.Thread(target=self.pm.sync_missing_game_details, args=(force,), daemon=True).start()
+
+    def on_sync_canceled(self):
+        logger.info("Solicitando cancelación de sincronización...")
+        self.pm.cancel_sync()
+
+    def on_sync_progress(self, current, total):
+        if getattr(self, 'progress', None):
+            self.progress.setMaximum(total)
+            self.progress.setValue(current)
+
+    def on_sync_finished(self, updated, total):
+        if getattr(self, 'progress', None):
+            self.progress.close()
+            self.progress = None
+        
+        QMessageBox.information(None, "Sincronización Completada", f"Se han actualizado {updated} juegos de un total de {total} procesados.")
+        
+    def on_sync_error(self, error_msg):
+        if getattr(self, 'progress', None):
+            self.progress.close()
+            self.progress = None
+        QMessageBox.critical(None, "Error de Sincronización", f"Ocurrió un error: {error_msg}")
