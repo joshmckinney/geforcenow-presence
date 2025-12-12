@@ -147,13 +147,24 @@ class SystemTrayIcon(QSystemTrayIcon):
             for k in candidates:
                 options.append({"name": k, "id": gm[k].get("client_id"), "exe": gm[k].get("executable_path"), "score": 1.0})
         else:
-            # Search in Discord
+            # 1. Search in Discord (Local Cache First)
             options = self.pm._find_discord_matches(game_name, max_candidates=5)
-            for c in options:
-                self.pm._apply_discord_match(game_name, c)
+
+            # 2. If no matches, force download and search again
+            if not options:
+                self.showMessage("Buscando...", f"No encontrado en caché. Descargando datos recientes de Discord para '{game_name}'...", QSystemTrayIcon.Information, 4000)
+                QApplication.processEvents() # Keep UI responsive (mostly)
+                
+                # Update cache
+                self.pm._fetch_discord_apps_cached(force_download=True)
+                
+                # Search again
+                options = self.pm._find_discord_matches(game_name, max_candidates=5)
+
+            # Note: We don't apply automatically here loop; we show selection dialog
 
         if not options:
-            self.showMessage("Info", "Sin coincidencias en JSON ni Discord.", QSystemTrayIcon.Information, 3000)
+            self.showMessage("Info", "Sin coincidencias en JSON ni Discord (incluso tras actualizar).", QSystemTrayIcon.Information, 3000)
             return
 
         # Show selection dialog
@@ -166,6 +177,10 @@ class SystemTrayIcon(QSystemTrayIcon):
         name = match["name"]
         cid = match.get("id")
         exe = match.get("exe")
+        
+        # PERSISTENCE: Save the match to games_config_merged.json
+        # This ensures next time we have it in games_map and don't need to search/download
+        self.pm._apply_discord_match(name, match)
         
         if cid:
             try:

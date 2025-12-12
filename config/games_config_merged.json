@@ -70894,5 +70894,13 @@
         "image": "steam",
         "executable_path": "where winds meet.exe",
         "client_id": "1437509662303059998"
+    },
+    "PRAGMATA": {
+        "executable_path": "pragmata_sketchbook.exe",
+        "client_id": "1448369915462549616"
+    },
+    "Forza 5": {
+        "executable_path": "forzahorizon5.exe",
+        "client_id": "905961880789590076"
     }
 }

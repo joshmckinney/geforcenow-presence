@@ -586,16 +586,25 @@ class PresenceManager(QObject):
 
     def _add_candidate(self, candidates, app, score):
         exe = None
+        
+    def _add_candidate(self, candidates, app, score):
+        exe = None
+        
         for e in app.get("executables", []) or []:
+            e_os = e.get("os")
+            e_name = e.get("name")
+            
             if IS_WINDOWS:
-                if e.get("os") == "win32" and e.get("name"):
-                    exe = e.get("name")
+                if e_os == "win32" and e_name:
+                    exe = e_name
                     break
             elif IS_MACOS:
-                if e.get("os") in ["macos", "darwin"] and e.get("name"):
-                    exe = e.get("name")
+                if e_os in ["macos", "darwin"] and e_name:
+                    exe = e_name
                     break
         
+        # Fallback check for macOS if no mac exe found (sometimes they are listed as win32 but usable via Wine/Crossover?)
+        # Or maybe the user logic intended to grab win32 exe name as fallback?
         if not exe and IS_MACOS:
              for e in app.get("executables", []) or []:
                 if e.get("os") == "win32" and e.get("name"):

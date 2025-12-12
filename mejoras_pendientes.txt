@@ -1,7 +1,7 @@
 [Solved] No hay una forma válida de salir del modo forzar juego sin cerrar el programa 
 [Solved] On a group hay que quitarle la cantidad de jugadores 
-[In progress] Ver como manejar la cantidad maxima de equipo para todos los juegos 
+[Solved] Ver como manejar la cantidad maxima de equipo para todos los juegos 
 [Solved] El tiempo se reinicia cuando cambian los detalles del presence aunque esté en el mismo juego. 
 [Solved] En windows 11 las ventanas no se enfocan 
-[In progress] Cambiar estilo de las ventanas
-[In progress] Cambiar resolución del gif
+[Solved] Cambiar estilo de las ventanas
+[Solved] Cambiar resolución del gif
