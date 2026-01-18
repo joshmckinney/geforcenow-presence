@@ -35,7 +35,7 @@ fh.setFormatter(formatter)
 logger.addHandler(fh)
 
 sh = logging.StreamHandler()
-sh.setLevel(logging.INFO)
+sh.setLevel(logging.DEBUG)
 sh.setFormatter(formatter)
 logger.addHandler(sh)
 

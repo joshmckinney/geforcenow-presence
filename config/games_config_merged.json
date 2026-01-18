@@ -195,7 +195,11 @@
         "steam_appid": null,
         "image": "steam",
         "executable_path": "rocketleague.exe",
-        "client_id": "356877880938070016"
+        "client_id": "356877880938070016",
+        "custom_details": "",
+        "custom_state": "",
+        "custom_party_size_current": 1,
+        "custom_party_size_max": 2
     },
     "Heroes of the Storm": {
         "name": "Heroes of the Storm",
@@ -11922,9 +11926,13 @@
     },
     "Hogwarts Legacy": {
         "name": "Hogwarts Legacy",
-        "steam_appid": null,
+        "steam_appid": "990080",
         "client_id": "1080277149623271444",
-        "executable_path": "win64/hogwartslegacy.exe"
+        "executable_path": "win64/hogwartslegacy.exe",
+        "custom_details": "",
+        "custom_state": "",
+        "custom_party_size_current": 0,
+        "custom_party_size_max": 0
     },
     "Sons Of The Forest": {
         "name": "Sons Of The Forest",
@@ -70887,7 +70895,8 @@
     },
     "arc raiders": {
         "executable_path": "pioneergame.exe",
-        "client_id": "1432419613165228174"
+        "client_id": "1432419613165228174",
+        "steam_appid": "1808500"
     },
     "Where Winds Meet": {
         "name": "Where Winds Meet",

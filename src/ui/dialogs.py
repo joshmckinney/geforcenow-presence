@@ -237,7 +237,7 @@ class AskGameDialog(QDialog):
 
         self.setWindowTitle(title)
         self.setWindowIcon(QIcon(str(ASSETS_DIR / "geforce.ico")))
-        self.setFixedSize(420, 200)
+        self.setFixedSize(420, 240) # Increased height for checkbox
         self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
 
         # ---- 🎮 ESTILO GAMING OSCURO ----
@@ -256,6 +256,12 @@ class AskGameDialog(QDialog):
 
         self.entry = QLineEdit()
         layout.addWidget(self.entry)
+
+        # Checkbox for Quest Mode
+        from PyQt5.QtWidgets import QCheckBox
+        self.quest_mode_cb = QCheckBox(TEXTS.get("quest_mode", "Discord Quest Mode (Multiple Games)"))
+        self.quest_mode_cb.setStyleSheet("color: #e0e0e0; font-size: 13px; font-weight: bold;")
+        layout.addWidget(self.quest_mode_cb)
 
         # Botones más compactos
         btn_layout = QHBoxLayout()
@@ -290,6 +296,201 @@ class AskGameDialog(QDialog):
 
     def get_game_name(self):
         return self.entry.text()
+
+    def is_quest_mode(self):
+        return self.quest_mode_cb.isChecked()
+
+
+class QuestListDialog(QDialog):
+    def __init__(self, presence_manager, parent=None):
+        super().__init__(parent)
+        self.pm = presence_manager
+        self.setWindowTitle("Discord Quest Mode - Active Games")
+        self.setWindowIcon(QIcon(str(ASSETS_DIR / "geforce.ico")))
+        self.setMinimumWidth(450)
+        self.setMinimumHeight(400)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+        self.setStyleSheet(GAMING_STYLESHEET)
+        
+        layout = QVBoxLayout()
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(10)
+        
+        lbl = QLabel(TEXTS.get("active_games", "Juegos activos (15 minutos máx.)"))
+        lbl.setObjectName("title_label")
+        lbl.setAlignment(Qt.AlignCenter)
+        layout.addWidget(lbl)
+        
+        self.list_widget = QListWidget()
+        self.list_widget.setStyleSheet(GAMING_STYLESHEET + """
+            QListWidget::item { 
+                border-bottom: 1px solid #2c2f33; 
+                margin-bottom: 4px;
+            }
+        """)
+        layout.addWidget(self.list_widget)
+        
+        # Add new game button
+        add_btn = QPushButton(TEXTS.get("force_new_game", "Forzar Nuevo Juego"))
+        add_btn.clicked.connect(self.on_add_game)
+        layout.addWidget(add_btn)
+        
+        self.close_btn = QPushButton(TEXTS.get("close_window", "Cerrar Ventana (Juegos continuarán)"))
+        self.close_btn.setObjectName("secondary")
+        self.close_btn.clicked.connect(self.accept)
+        layout.addWidget(self.close_btn)
+        
+        self.setLayout(layout)
+        
+        # Timer for UI updates
+        from PyQt5.QtCore import QTimer
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.refresh_list)
+        self.timer.start(1000) # Update every second
+        
+        self.refresh_list()
+        
+    def on_add_game(self):
+        # Trigger the same logic as the tray icon
+        # We can signal or call a callback provided in init, but for now let's assume parent/pm handling?
+        # Ideally, we should invoke the main add game dialog.
+        # But we are in a dialog.
+        
+        # Let's import AskGameDialog locally to avoid circulars if any, though we are in same file
+        dlg = AskGameDialog(parent=self, message="Nombre del juego para Quest:")
+        dlg.quest_mode_cb.setChecked(True)
+        dlg.quest_mode_cb.setEnabled(False) # Force quest mode if adding from here
+        
+        if dlg.exec_() == QDialog.Accepted:
+            game_name = dlg.get_game_name()
+            if game_name:
+                # We need to trigger the process_force_game logic.
+                # Since we have `pm`, we can perhaps call a new method on it or use the tray icon logic?
+                # The tray icon logic handles the searching/downloading.
+                # We should probably expose that logic or signal it.
+                # For simplicity, let's signal the PM to request a new quest game login.
+                # But PM is core. Tray is UI.
+                # Let's emit a custom signal if possible, or direct call if we move logic to PM.
+                # For now, let's assume PM has a method `start_quest_game_flow(game_name, parent_ui)`
+                # Or we can reuse the callback passed from tray?
+                # Actually, the proper way is probably to emit a signal from this dialog that the Tray listens to?
+                # But Tray creates this dialog.
+                # We can call `self.parent().process_force_game(game_name, quest_mode=True)` if parent is tray.
+                pass
+                # To be handled in the connection logic in TrayIcon.
+                # Actually, let's allow the user to type it here, but the heavy lifting is done by the caller.
+                # We will define a callback.
+                if hasattr(self, 'add_game_callback'):
+                    self.add_game_callback(game_name)
+
+    def set_add_game_callback(self, callback):
+        self.add_game_callback = callback
+        
+    def refresh_list(self):
+        # Save scroll position
+        # current_row = self.list_widget.currentRow()
+        
+        self.list_widget.clear()
+        
+        quests = getattr(self.pm, "active_quests", {})
+        if not quests:
+            self.list_widget.addItem("No hay juegos activos en modo Quest.")
+            return
+
+        from PyQt5.QtWidgets import QWidget, QProgressBar, QHBoxLayout, QLabel, QPushButton
+        
+        sorted_quests = sorted(quests.items(), key=lambda x: x[1]['start_time'])
+        
+        for game_id, data in sorted_quests:
+            item_widget = QWidget()
+            layout = QVBoxLayout()
+            layout.setContentsMargins(8, 8, 8, 8)
+            layout.setSpacing(4)
+            
+            # Header
+            header_layout = QHBoxLayout()
+            name_lbl = QLabel(f"{data.get('name', 'Unknown')}")
+            # Add padding and min-height to prevent clipping of descenders/ascenders
+            name_lbl.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: bold; padding: 2px 0px 4px 0px;")
+            name_lbl.setWordWrap(True)
+            # Ensure label tries to expand reasonably
+            name_lbl.setMinimumHeight(24)
+            header_layout.addWidget(name_lbl, 1) 
+            
+            # Close/Remove button
+            btn_stop = QPushButton("❌")
+            btn_stop.setFixedSize(28, 28)
+            btn_stop.setCursor(Qt.PointingHandCursor)
+            btn_stop.setStyleSheet("""
+                QPushButton { background: #d32f2f; color: white; border: none; border-radius: 4px; font-size: 14px; }
+                QPushButton:hover { background: #b71c1c; }
+            """)
+            btn_stop.clicked.connect(lambda checked, gid=game_id: self.stop_quest(gid))
+            header_layout.addWidget(btn_stop)
+            
+            layout.addLayout(header_layout)
+            
+            # Spacer
+            layout.addSpacing(4)
+
+            # Progress status
+            import time
+            elapsed = time.time() - data['start_time']
+            duration = 15 * 60 # 15 mins
+            remaining = max(0, duration - elapsed)
+            
+            progress = QProgressBar()
+            progress.setRange(0, duration)
+            progress.setValue(int(remaining))
+            progress.setTextVisible(False)
+            
+            # Color based on state or time
+            progress.setStyleSheet("""
+                QProgressBar {
+                    background-color: #2c2f33;
+                    border: none;
+                    border-radius: 4px;
+                    height: 10px;
+                }
+                QProgressBar::chunk {
+                    background-color: #5865F2; /* Discord Blurple brighter */
+                    border-radius: 4px;
+                }
+            """)
+            
+            if data.get('finished', False):
+                status_text = "Estado: Detenido"
+                progress.setValue(0)
+            else:
+                mins = int(remaining // 60)
+                secs = int(remaining % 60)
+                status_text = f"⏱️ Tiempo restante: {mins:02d}:{secs:02d}"
+                
+            status_lbl = QLabel(status_text)
+            status_lbl.setStyleSheet("color: #dcddde; font-size: 13px; font-weight: 500; padding-top: 2px;")
+            
+            layout.addWidget(status_lbl)
+            layout.addWidget(progress)
+            
+            item_widget.setLayout(layout)
+            
+            # Force layout calculation
+            item_widget.adjustSize()
+            
+            # Add to list
+            from PyQt5.QtWidgets import QListWidgetItem
+            list_item = QListWidgetItem(self.list_widget)
+            # Add a little extra height buffer to be safe
+            sz = item_widget.sizeHint()
+            sz.setHeight(sz.height() + 10) 
+            list_item.setSizeHint(sz)
+            self.list_widget.addItem(list_item)
+            self.list_widget.setItemWidget(list_item, item_widget)
+            
+    def stop_quest(self, game_id):
+        self.pm.stop_quest_game(game_id)
+        self.refresh_list()
+
 
 
 class MatchSelectionDialog(QDialog):
@@ -355,3 +556,88 @@ class MatchSelectionDialog(QDialog):
                 TEXTS.get("selection_required", "Selección requerida"),
                 TEXTS.get("selection_required_msg", "Por favor selecciona una opción de la lista.")
             )
+
+
+class CustomPresenceDialog(QDialog):
+    def __init__(self, game_name, current_data, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Custom Presence: {game_name}")
+        self.setWindowIcon(QIcon(str(ASSETS_DIR / "geforce.ico")))
+        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+        self.setStyleSheet(GAMING_STYLESHEET)
+        
+        self.game_name = game_name
+        self.result_data = None
+        
+        layout = QVBoxLayout()
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+        
+        # Helper to create rows
+        def add_row(label_txt, widget):
+            r = QVBoxLayout()
+            r.setSpacing(5)
+            l = QLabel(label_txt)
+            r.addWidget(l)
+            r.addWidget(widget)
+            layout.addLayout(r)
+            return widget
+
+        self.details_edit = add_row("Detalles (Línea 1):", QLineEdit())
+        self.details_edit.setPlaceholderText("Ej: Jugando Competitivo")
+        self.details_edit.setText(current_data.get("custom_details", ""))
+
+        self.state_edit = add_row("Estado (Línea 2):", QLineEdit())
+        self.state_edit.setPlaceholderText("Ej: En grupo de 5")
+        self.state_edit.setText(current_data.get("custom_state", ""))
+
+        # Party Size Row
+        party_layout = QHBoxLayout()
+        
+        from PyQt5.QtWidgets import QSpinBox
+        self.party_current = QSpinBox()
+        self.party_current.setRange(0, 100)
+        self.party_current.setValue(current_data.get("custom_party_size_current", 0))
+        
+        self.party_max = QSpinBox()
+        self.party_max.setRange(0, 100)
+        self.party_max.setValue(current_data.get("custom_party_size_max", 0))
+        
+        p_sub = QVBoxLayout()
+        p_sub.addWidget(QLabel("Personas (Actual):"))
+        p_sub.addWidget(self.party_current)
+        party_layout.addLayout(p_sub)
+        
+        p_sub2 = QVBoxLayout()
+        p_sub2.addWidget(QLabel("Personas (Max):"))
+        p_sub2.addWidget(self.party_max)
+        party_layout.addLayout(p_sub2)
+        
+        layout.addLayout(party_layout)
+        
+        layout.addWidget(QLabel("Nota: Si 'Max' es 0, no se mostrará información de grupo."))
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+        self.save_btn = QPushButton("Guardar")
+        self.save_btn.clicked.connect(self.on_save)
+        
+        self.cancel_btn = QPushButton("Cancelar")
+        self.cancel_btn.setObjectName("secondary")
+        self.cancel_btn.clicked.connect(self.reject)
+        
+        btn_layout.addWidget(self.save_btn)
+        btn_layout.addWidget(self.cancel_btn)
+        layout.addLayout(btn_layout)
+        
+        self.setLayout(layout)
+        self.adjustSize()
+
+    def on_save(self):
+        self.result_data = {
+            "custom_details": self.details_edit.text(),
+            "custom_state": self.state_edit.text(),
+            "custom_party_size_current": self.party_current.value(),
+            "custom_party_size_max": self.party_max.value()
+        }
+        self.accept()

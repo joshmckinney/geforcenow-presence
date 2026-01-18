@@ -7,7 +7,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QDialog
 from src.core.utils import ASSETS_DIR, LOG_FILE
 from src.core.app_launcher import AppLauncher
-from src.ui.dialogs import AskGameDialog, MatchSelectionDialog, GamingMessageBox, GamingInputDialog, GAMING_STYLESHEET
+from src.ui.dialogs import AskGameDialog, MatchSelectionDialog, GamingMessageBox, GamingInputDialog, QuestListDialog, CustomPresenceDialog, GAMING_STYLESHEET
 from src.core.utils import get_lang_from_registry, load_locale
 
 try:
@@ -89,14 +89,18 @@ class SystemTrayIcon(QSystemTrayIcon):
         open_gf_action.triggered.connect(self.open_geforce)
         self.menu.addAction(open_gf_action)
         
-        # Set Max Party Size
-        DEFAULT_CLIENT_ID = "1095416975028650046"
-        current_cid = getattr(self.pm, "_connected_client_id", None)
-        
-        if current_cid and current_cid != DEFAULT_CLIENT_ID:
-            party_action = QAction(TEXTS.get("tray_set_max_party_size", "Set Max Party Size..."), self.menu)
-            party_action.triggered.connect(self.set_max_party_size_dialog)
-            self.menu.addAction(party_action)
+
+
+        # Custom Presence (Only if game active)
+        active_game = self.pm.forced_game or self.pm.last_game
+        if active_game:
+            gname = active_game.get("name", "Unknown")
+            # Limit length
+            if len(gname) > 25: gname = gname[:22] + "..."
+            
+            cp_action = QAction(f"Custom Presence: {gname}", self.menu)
+            cp_action.triggered.connect(self.open_custom_presence_dialog)
+            self.menu.addAction(cp_action)
 
         # Sync Games
         sync_text = TEXTS.get("tray_sync_games", "Sync games")
@@ -124,6 +128,13 @@ class SystemTrayIcon(QSystemTrayIcon):
             self.open_geforce()
 
     def toggle_force_game(self):
+        # 0. Check for running quests
+        if getattr(self.pm, "active_quests", None):
+            dlg = QuestListDialog(self.pm)
+            dlg.set_add_game_callback(self.process_quest_input)
+            dlg.exec_()
+            return
+
         if self.pm.forced_game:
             self.pm.stop_force_game()
             self.showMessage("OK", "Forzado de juego detenido.", QSystemTrayIcon.Information, 3000)
@@ -136,7 +147,59 @@ class SystemTrayIcon(QSystemTrayIcon):
             if not game_name:
                 return
             
-            self.process_force_game(game_name)
+            if dialog.is_quest_mode():
+                 success = self.process_quest_input(game_name)
+                 # Check if now we have active quests (success might be deferred if we show match dialog? No, exec blocks)
+                 if success and self.pm.active_quests:
+                     # Open the list immediately
+                     dlg = QuestListDialog(self.pm)
+                     dlg.set_add_game_callback(self.process_quest_input)
+                     dlg.exec_()
+            else:
+                 self.process_force_game(game_name)
+
+    def process_quest_input(self, game_name):
+        """
+        Similar to process_force_game but for quests.
+        Returns True if a game was successfully queued/started.
+        """
+        # Reuse search logic
+        gm = self.pm.games_map or {}
+        candidates = [k for k in gm if game_name.lower() in k.lower()]
+        
+        options = []
+        if candidates:
+            for k in candidates:
+                options.append({"name": k, "id": gm[k].get("client_id"), "exe": gm[k].get("executable_path"), "score": 1.0})
+        else:
+            options = self.pm._find_discord_matches(game_name, max_candidates=5)
+            if not options:
+                self.showMessage("Buscando...", f"No encontrado en caché. Descargando datos recientes para '{game_name}'...", QSystemTrayIcon.Information, 4000)
+                QApplication.processEvents() 
+                self.pm._fetch_discord_apps_cached(force_download=True)
+                options = self.pm._find_discord_matches(game_name, max_candidates=5)
+        
+        if not options:
+            self.showMessage("Info", "Sin coincidencias encontradas.", QSystemTrayIcon.Information, 3000)
+            return False
+
+        # Show selection dialog
+        sel_dialog = MatchSelectionDialog("Seleccionar Juego (Quest)", options)
+        if sel_dialog.exec_() == QDialog.Accepted and sel_dialog.selected_match:
+            match = sel_dialog.selected_match
+            self.apply_quest_game(match)
+            return True
+        return False
+
+    def apply_quest_game(self, match):
+        name = match["name"]
+        exe = match.get("exe") or f"{name}.exe" # Fallback
+        
+        # Save cache
+        self.pm._apply_discord_match(name, match)
+        
+        # Launch using PM
+        self.pm.launch_quest_game(name, exe)
 
     def process_force_game(self, game_name):
         gm = self.pm.games_map or {}
@@ -235,33 +298,18 @@ class SystemTrayIcon(QSystemTrayIcon):
         else:
             self.showMessage(TEXTS.get("logs_title", "Logs"), TEXTS.get("open_logs_error", "No log file found."), QSystemTrayIcon.Warning, 3000)
 
-    def set_max_party_size_dialog(self):
-        from PyQt5.QtWidgets import QInputDialog
-        
-        if not self.pm.last_game and not self.pm.forced_game:
-            GamingMessageBox.show_warning(None, "Party Size", "No hay ningún juego en ejecución (ni forzado).")
-            return
-
-        current_max = 4
-        
-        # Try to get current values
+    def open_custom_presence_dialog(self):
         game = self.pm.forced_game or self.pm.last_game
-        if game:
-            game_key = game.get("name")
-            if game_key and game_key in self.pm.games_map:
-                existing = self.pm.games_map[game_key].get("max_party_size")
-                if existing:
-                    current_max = int(existing)
-
-        i, ok = GamingInputDialog.get_int(None, "Set Party Size", 
-                                    f"Tamaño MÁXIMO del grupo:", 
-                                    current_max, 1, 100, 1)
-        if ok:
-            success = self.pm.set_max_party_size(i)
-            if success:
-                self.showMessage("Party Size", f"Tamaño máximo actualizado a {i}", QSystemTrayIcon.Information, 2000)
-            else:
-                self.showMessage("Error", "No se pudo actualizar el tamaño del grupo.", QSystemTrayIcon.Warning, 3000)
+        if not game:
+            self.showMessage("Error", "No hay juego activo.", QSystemTrayIcon.Warning)
+            return
+            
+        name = game.get("name", "Unknown")
+        # Pass current custom values if any
+        dlg = CustomPresenceDialog(name, game, parent=None)
+        if dlg.exec_() == QDialog.Accepted and dlg.result_data:
+            self.pm.set_custom_presence(dlg.result_data)
+            self.showMessage("Custom Presence", f"Presencia actualizada para {name}", QSystemTrayIcon.Information, 2000)
 
     def on_match_selection_requested(self, game_key, candidates):
         # This is called from PresenceManager when it finds a new game and needs user input

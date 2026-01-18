@@ -1,5 +1,9 @@
 {
     "already_running": "💡 GeForce NOW ya se está ejecutando",
+    "quest_mode": "Modo Misiones de Discord (Multiples juegos)",
+    "active_games": "Juegos activos (15 minutos máx.)",
+    "close_window": "Cerrar Ventana (Juegos continuarán)",
+    "force_new_game": "Forzar Nuevo Juego",
     "launching": "🚀 Iniciando GeForce NOW...",
     "launching_discord": "🚀 Iniciando Discord...",
     "tray_forced_game": "Juego forzado",

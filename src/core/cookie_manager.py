@@ -16,7 +16,7 @@ from selenium.webdriver.edge.service import Service as EdgeService
 from selenium.webdriver.edge.options import Options
 from selenium.common.exceptions import WebDriverException
 
-from src.core.utils import save_cookie_to_env, DRIVER_PATH, ensure_driver_executable, ENV_PATH
+from src.core.utils import save_cookie_to_env, DRIVER_PATH, ensure_driver_executable, ENV_PATH, IS_WINDOWS, IS_MACOS, IS_LINUX
 
 logger = logging.getLogger('geforce_presence')
 
@@ -99,11 +99,21 @@ class CookieManager:
 
             logger.info("🧩 Obteniendo cookie de Steam con Selenium (Edge)...")
             
-            localapp = os.getenv("LOCALAPPDATA", "")
-            user_data_dir = str(Path(localapp) / "Microsoft" / "Edge" / "User Data")
-            if not Path(user_data_dir).exists():
-                logger.error("❌ No se encontró la carpeta de perfiles de Edge.")
-                return None
+            user_data_dir = ""
+            if IS_WINDOWS:
+                localapp = os.getenv("LOCALAPPDATA", "")
+                user_data_dir = str(Path(localapp) / "Microsoft" / "Edge" / "User Data")
+            elif IS_MACOS:
+                user_data_dir = str(Path.home() / "Library" / "Application Support" / "Microsoft Edge")
+            elif IS_LINUX:
+                user_data_dir = str(Path.home() / ".config" / "microsoft-edge")
+
+            if not user_data_dir or not Path(user_data_dir).exists():
+                logger.error(f"❌ No se encontró la carpeta de perfiles de Edge en: {user_data_dir}")
+                # Try to proceed anyway? Selenium might create a temp one if not found, but we want the specific profile.
+                if not Path(user_data_dir).exists():
+                     pass # Logged above, but let's see if we can continue or return
+                # return None # Returning None might be safer if we strictly need the user's cookies.
 
             service = EdgeService(executable_path=self.driver_path)
             options = Options()
@@ -132,7 +142,7 @@ class CookieManager:
             logger.error(f"❌ Selenium WebDriver error: {msg}")
 
             # Detecta exactamente el error de versión
-            if "only supports Microsoft Edge version" or "Unable to obtain driver for MicrosoftEdge" in msg:
+            if "only supports Microsoft Edge version" in msg or "Unable to obtain driver for MicrosoftEdge" in msg:
                 logger.warning("🔄 Edge WebDriver desactualizado. Intentando actualizar...")
 
                 try:

@@ -15,6 +15,7 @@ from dotenv import set_key
 # Platform detection
 IS_WINDOWS = sys.platform == "win32"
 IS_MACOS = sys.platform == "darwin"
+IS_LINUX = sys.platform.startswith("linux")
 
 if IS_WINDOWS:
     import winreg
@@ -38,8 +39,10 @@ ASSETS_DIR = resource_path("assets")
 # Driver path depends on OS
 if IS_WINDOWS:
     DRIVER_PATH = resource_path("tools", "msedgedriver.exe")
+elif IS_MACOS:
+    DRIVER_PATH = resource_path("tools", "msedgedriver_mac") 
 else:
-    DRIVER_PATH = resource_path("tools", "msedgedriver") # Assuming mac binary name
+    DRIVER_PATH = resource_path("tools", "msedgedriver_linux")
 
 LOG_FILE = LOGS_DIR / "geforce_presence.log"
 ENV_PATH = resource_path(".env")
@@ -77,6 +80,10 @@ def get_lang_from_registry(default="en"):
         lang = os.getenv("LANG", default)
         return _normalize_lang(lang, default)
     
+    elif IS_LINUX:
+        lang = os.getenv("LANG", default)
+        return _normalize_lang(lang, default)
+
     return default
 
 def _normalize_lang(lang_str: str, default: str) -> str:

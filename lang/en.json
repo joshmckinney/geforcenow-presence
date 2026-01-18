@@ -1,5 +1,9 @@
 {
     "already_running": "💡 GeForce NOW is already running",
+    "quest_mode": "Discord Quest Mode (Multiple Games)",
+    "active_games": "Active Games (15 minutes max.)",
+    "close_window": "Close Window (Games will continue)",
+    "force_new_game": "Force New Game",
     "launching": "🚀 Launching GeForce NOW...",
     "launching_discord": "🚀 Launching Discord...",
     "tray_forced_game": "Forced game",
@@ -7,7 +11,7 @@
     "playing_solo": "Playing solo",
     "playing_in_group": "Playing in group",
     "tray_set_max_party_size": "Set Max Party Size...",
-    "tray_stop_forced_game":  "Stop forcing: {game_name}",
+    "tray_stop_forced_game": "Stop forcing: {game_name}",
     "selection_required_msg": "Please select an option from the list.",
     "already_running_discord": "💡 Discord is already running",
     "launching_dumb": "🚀 Launching dumb.exe...",
