@@ -14,14 +14,6 @@ Detect your GeForce NOW games on Discord, perfect for Discord Quests, GFN users,
     <img src="https://img.shields.io/badge/⬇️%20Download-00C853?style=for-the-badge&logo=github&logoColor=white" alt="Download Latest Release"/>
   </a>
   <br>
-<a href="https://paypal.me/KarmaDevz" target="_blank">
-  <img src="https://img.shields.io/badge/💖%20Sponsor%20this%20project-0070ba?style=for-the-badge&logo=paypal&logoColor=white" alt="Paypal Donations">
-</a>
-</p>
-<p align="center">
-  <a href="https://discord.gg/geforce-now-by-digevo-1412524071878525050">
-    <img src="https://img.shields.io/badge/Need%20support%3F%20➡️-2962FF?style=for-the-badge&logo=discord&logoColor=white" alt="GeForce NOW by Digevo"/>
-  </a>
 </p>
 
 
@@ -122,5 +114,14 @@ Do you need support? Visit GeForce NOW by Digevo official server for contact sup
   <a href="https://github.com/KarmaDevz/discord-rich-presence-for-geforcenow/releases/latest">
     <img src="https://img.shields.io/badge/Download%20Now%20➡️-1B5E20?style=for-the-badge&logo=nvidia&logoColor=white"
          alt="Download now"/>
+  </a>
+  
+<a href="https://paypal.me/KarmaDevz" target="_blank">
+  <img src="https://img.shields.io/badge/💖%20Sponsor%20this%20project-0070ba?style=for-the-badge&logo=paypal&logoColor=white" alt="Paypal Donations">
+</a>
+</p>
+<p align="center">
+  <a href="https://discord.gg/geforce-now-by-digevo-1412524071878525050">
+    <img src="https://img.shields.io/badge/Need%20support%3F%20➡️-2962FF?style=for-the-badge&logo=discord&logoColor=white" alt="GeForce NOW by Digevo"/>
   </a>
 </p>
