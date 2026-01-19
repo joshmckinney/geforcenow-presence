@@ -1,6 +1,13 @@
-<p align="center"> GeForce NOW Rich Presence for Discord:
+<p align="center">
+GeForce NOW Rich Presence for Discord:
 Automatically show your real GeForce NOW game in your Discord Rich Presence  
-Detect your GeForce NOW games on Discord, perfect for Discord Quests, GFN users, and streamers who want their status updated beautifully in real time. 
+Detect your GeForce NOW games on Discord, perfect for Discord Quests, GFN users, and streamers who want their status updated beautifully in real time.
+</p>
+
+<p align="center">
+<a href="https://github.com/KarmaDevz/GeForce-NOW-Rich-Presence/releases">
+<img src="https://img.shields.io/github/downloads/KarmaDevz/GeForce-NOW-Rich-Presence/total?label=DESCARGAS&style=for-the-badge" />
+</a>
 </p>
 
 [🇪🇸 Leer en Español](./README.es.md)
@@ -14,6 +21,7 @@ Detect your GeForce NOW games on Discord, perfect for Discord Quests, GFN users,
   <a href="https://github.com/KarmaDevz/discord-rich-presence-for-geforcenow/releases/latest">
     <img src="https://img.shields.io/badge/⬇️%20Download-00C853?style=for-the-badge&logo=github&logoColor=white" alt="Download Latest Release"/>
   </a>
+  
   <br>
 </p>
 
