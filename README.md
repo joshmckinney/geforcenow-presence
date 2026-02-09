@@ -15,7 +15,7 @@ Detect your GeForce NOW games on Discord, perfect for Discord Quests, GFN users,
     <img src="https://img.shields.io/badge/⬇️%20Download-00C853?style=for-the-badge&logo=github&logoColor=white" alt="Download Latest Release"/>
   </a>
   <a href="https://github.com/KarmaDevz/GeForce-NOW-Rich-Presence/releases">
-<img src="https://img.shields.io/github/downloads/KarmaDevz/GeForce-NOW-Rich-Presence/total?label=Total Downloads&style=for-the-badge" />
+<img src="https://img.shields.io/github/downloads/KarmaDevz/GeForce-NOW-Rich-Presence/total?label=Total20%Downloads&style=for-the-badge" />
 </a>
   <br>
 </p>
