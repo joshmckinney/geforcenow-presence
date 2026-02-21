@@ -1,134 +1,109 @@
-<p align="center">
-GeForce NOW Rich Presence for Discord:
-Automatically show your real GeForce NOW game in your Discord Rich Presence  
-Detect your GeForce NOW games on Discord, perfect for Discord Quests, GFN users, and streamers who want their status updated beautifully in real time.
-</p>
-<p>
-  <a href="./README.es.md">🇪🇸 Leer Readme en Español</a>
-</p>
-
-
-<h1 align="center">🎮 GeForce NOW Rich Presence for Discord</h1>
-
+# 👋 ¡Hola! I'm Andrés (KarmaDevz)
 
 <p align="center">
-  Show your real game on Discord while playing on <strong>GeForce NOW</strong> — automatically and beautifully.
-  <br/><br/>
-  <a href="https://github.com/KarmaDevz/discord-rich-presence-for-geforcenow/releases/latest">
-    <img src="https://img.shields.io/badge/⬇️%20Download-00C853?style=for-the-badge&logo=github&logoColor=white" alt="Download Latest Release"/>
+  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&pause=1000&color=00B8F7&center=true&vCenter=true&width=435&lines=Software+Engineer;Automation+Enthusiast;Reverse+Engineering+Curious;Creator+of+GeForce+Presence" alt="Typing SVG" />
+</p>
+
+---
+
+## 🧑‍💻 About Me
+
+- 💻 **Software Engineer** from Colombia 🇨🇴
+- 🤖 Passionate about **automation**, **reverse engineering**, and building developer tools
+- 🚀 Creator of [**GeForce Presence**](https://github.com/KarmaDevz/GeForce-NOW-Rich-Presence) – a Discord Rich Presence automation for GeForce NOW
+- 🌱 Currently diving deeper into **backend APIs** and **advanced Discord integrations**
+- ⚡ Fun fact: I love optimizing workflows and making computers do the heavy lifting
+
+---
+
+## 🔥 Featured Project: GeForce Presence
+
+<p align="center">
+  <a href="https://github.com/KarmaDevz/GeForce-NOW-Rich-Presence">
+    <img src="https://github-readme-stats.vercel.app/api/pin/?username=KarmaDevz&repo=GeForce-NOW-Rich-Presence&theme=tokyonight&show_owner=true" alt="GeForce Presence Card" />
   </a>
+</p>
+
+**Rich Presence automation for Discord + GeForce NOW**  
+Automatically detects your game and shows it off in Discord with style!
+
+- 🔥 Multi-game detection (no manual setup)
+- ⚙️ Powered by **Selenium** for smart session monitoring
+- 🎨 Customizable **PyQt** interface
+- 📦 One-click installer built with **Inno Setup**
+- 🌍 Multi-language support (English, Spanish, and more)
+
+### 📥 Download Stats
+
+<p align="center">
   <a href="https://github.com/KarmaDevz/GeForce-NOW-Rich-Presence/releases">
-<img src="https://img.shields.io/github/downloads/KarmaDevz/GeForce-NOW-Rich-Presence/total?label=Total%20Downloads&style=for-the-badge" />
-</a>
-  <br>
-</p>
-
-
-
-
-<p align="center">
-  <img src="assets/asset1.jpg" alt="GeForce NOW Rich Presence Screenshot 1" width="100%"/>
-</p>
-
-
----
-
-## 🕹️ What is this?
-
-**GeForce NOW Rich Presence for Discord** lets you display the **actual game you're playing on GeForce NOW** directly on your Discord profile.  
-No more just “Playing GeForce NOW” — now it shows the **real title, image, and custom status** in real time.
-
-Perfect for streamers, gamers, and anyone who loves showing off what they’re playing 🎮💚
-
----
-
-## ✨ Features
-
-- ✅ **Automatic detection** of the game you're running on GeForce NOW  
-- ✅ Displays **real game names and images** on Discord  
-- ✅ **Tray icon menu** to force a game, open GeForce NOW, or exit easily  
-- ✅ Works out of the box — **no Python, no setup, no configuration**  
-- ✅ Lightweight installer built with **Inno Setup**  
-- ✅ Fully compatible with Windows and Discord Desktop
-
----
-
-## 📦 Installation
-
-1. Click the button above or go to the [**Latest Release**](https://github.com/KarmaDevz/discord-rich-presence-for-geforcenow/releases/latest).  
-2. Download the installer `.exe` file.  
-3. Run the installer and follow the simple steps.  
-4. Once installed, just open the app — it will automatically detect your GeForce NOW session and update your Discord Rich Presence.  
-5. That’s it! Sit back and let your friends see what you’re playing 😎  
-
----
-
-## 🧠 How it works (simplified)
-
-The app runs quietly in the background and:
-- Detects when a game is launched on **GeForce NOW**  
-- Matches it with a built-in game list  
-- Sends the correct **Rich Presence** to Discord  
-- Updates it automatically as long as the game is running  
-
-It’s 100% automatic — no need to configure anything.
-
----
-
-## ⚙️ Tray Icon Options
-
-When running, the app shows an icon in your Windows tray (bottom-right corner).  
-From there, you can:
-- 🎮 **Force Game** — Manually choose which game to display  
-- ✅ **Get Steam Cookie** — For show Steam Rich Presence
-- 🚀 **Open GeForce NOW**  — Open GeForce NOW
-- 📊 **Sync Games** — Update the game list
-- 👥 **Set Max party size** — Set the max party size
-- 📝 **Open Logs** — Open the logs folder
-- ❌ **Exit the app** — Exit the app
-
----
-
-## 📸 Instructions
-
-<p align="center">
-  <img src="assets/instructions.png" width="100%" alt="Discord Rich Presence Instructions"/>
-</p>
-
----
-
-## 🧩 FAQ
-
-**Q: Do I need Python or any dependencies?**  
-A: Nope! Everything is bundled — just install and run.
-
-**Q: Does it work with Steam or Epic Games?**  
-A: Yes! It detects games streamed through GeForce NOW, regardless of the platform.
-
-**Q: Is it safe?**  
-A: 100%. No login or account information is required.
-
----
-
-## 💬 About
-
-This project was created by [**KarmaDevz**](https://github.com/KarmaDevz) to make **GeForce NOW + Discord** integration as smooth and automatic as possible.  
-If you like it, consider giving the repo a ⭐ on GitHub!
-Do you need support? Visit GeForce NOW by Digevo official server for contact support
-
-
-<p align="center">
-  <a href="https://github.com/KarmaDevz/discord-rich-presence-for-geforcenow/releases/latest">
-    <img src="https://img.shields.io/badge/Download%20Now%20➡️-1B5E20?style=for-the-badge&logo=nvidia&logoColor=white"
-         alt="Download now"/>
+    <img src="https://img.shields.io/github/downloads/KarmaDevz/GeForce-NOW-Rich-Presence/total?label=Total%20Downloads&style=for-the-badge&color=blueviolet" alt="Downloads" />
   </a>
-  
-<a href="https://paypal.me/KarmaDevz" target="_blank">
-  <img src="https://img.shields.io/badge/💖%20Sponsor%20this%20project-0070ba?style=for-the-badge&logo=paypal&logoColor=white" alt="Paypal Donations">
-</a>
-</p>
-<p align="center">
-  <a href="https://discord.gg/geforce-now-by-digevo-1412524071878525050">
-    <img src="https://img.shields.io/badge/Need%20support%3F%20➡️-2962FF?style=for-the-badge&logo=discord&logoColor=white" alt="GeForce NOW by Digevo"/>
+  <a href="https://github.com/KarmaDevz/GeForce-NOW-Rich-Presence/stargazers">
+    <img src="https://img.shields.io/github/stars/KarmaDevz/GeForce-NOW-Rich-Presence?style=for-the-badge&color=yellow" alt="Stars" />
   </a>
+  <a href="https://github.com/KarmaDevz/GeForce-NOW-Rich-Presence/issues">
+    <img src="https://img.shields.io/github/issues/KarmaDevz/GeForce-NOW-Rich-Presence?style=for-the-badge&color=red" alt="Issues" />
+  </a>
+</p>
+
+---
+
+## 🛠️ Tech Stack
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" />
+  <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" />
+  <img src="https://img.shields.io/badge/Selenium-43B02A?style=for-the-badge&logo=selenium&logoColor=white" />
+  <img src="https://img.shields.io/badge/PyQt-41CD52?style=for-the-badge&logo=qt&logoColor=white" />
+  <img src="https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white" />
+  <img src="https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white" />
+  <img src="https://img.shields.io/badge/Inno_Setup-FF6600?style=for-the-badge&logo=innosetup&logoColor=white" />
+</p>
+
+---
+
+## 📊 GitHub Stats
+
+<p align="center">
+  <img src="https://github-readme-stats.vercel.app/api?username=KarmaDevz&show_icons=true&theme=tokyonight&count_private=true&hide_border=true" alt="GitHub Stats" width="48%" />
+  <img src="https://github-readme-streak-stats.herokuapp.com/?user=KarmaDevz&theme=tokyonight&hide_border=true" alt="GitHub Streak" width="48%" />
+</p>
+
+<p align="center">
+  <img src="https://github-readme-stats.vercel.app/api/top-langs/?username=KarmaDevz&layout=compact&theme=tokyonight&hide_border=true" alt="Top Languages" width="45%" />
+</p>
+
+---
+
+## 🎯 Currently Building
+
+- 🤖 **Advanced Discord Presence** systems with real-time game detection
+- 🛠️ **Automation tooling** for everyday developer workflows
+- 🌐 **Backend APIs** using FastAPI and PostgreSQL
+
+---
+
+## 📫 Let's Connect
+
+<p align="center">
+  <a href="https://twitter.com/yourhandle" target="_blank">
+    <img src="https://img.shields.io/badge/Twitter-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white" />
+  </a>
+  <a href="https://linkedin.com/in/yourprofile" target="_blank">
+    <img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white" />
+  </a>
+  <a href="mailto:your.email@example.com">
+    <img src="https://img.shields.io/badge/Email-D14836?style=for-the-badge&logo=gmail&logoColor=white" />
+  </a>
+  <a href="https://github.com/KarmaDevz" target="_blank">
+    <img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white" />
+  </a>
+</p>
+
+---
+
+<p align="center">
+  <img src="https://komarev.com/ghpvc/?username=KarmaDevz&color=blueviolet&style=flat-square&label=Profile+Views" alt="Profile views" />
 </p>
