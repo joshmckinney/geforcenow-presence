@@ -95,5 +95,10 @@
     "match_title": "Matches for: {busqueda}",
     "match_col_name": "Name",
     "match_col_score": "Match",
-    "match_col_quests": "Discord Quests"
+    "match_col_quests": "Discord Quests",
+    "tray_config": "Configuration",
+    "config_start_windows": "Start with Windows",
+    "config_start_gfn": "Start GeForce NOW on launch",
+    "config_start_discord": "Start Discord on launch",
+    "config_get_cookie": "Get cookie on launch"
 }

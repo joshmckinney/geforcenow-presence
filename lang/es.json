@@ -95,5 +95,10 @@
     "match_title": "Coincidencias para: {busqueda}",
     "match_col_name": "Nombre",
     "match_col_score": "Coincidencia",
-    "match_col_quests": "Misiones de discord"
+    "match_col_quests": "Misiones de discord",
+    "tray_config": "Configuración",
+    "config_start_windows": "Iniciar con Windows",
+    "config_start_gfn": "Iniciar GeForce NOW con la aplicación",
+    "config_start_discord": "Iniciar Discord con la aplicación",
+    "config_get_cookie": "Obtener cookie al iniciar la aplicación"
 }

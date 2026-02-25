@@ -77,10 +77,10 @@ def main():
     config_manager = ConfigManager(CONFIG_DIR / "config_path.txt")
 
     # 5.1 Launch Apps
-    if config_manager.get_setting("start_discord_on_launch", True):
+    if config_manager.get_setting("start_discord_on_launch", False):
         AppLauncher.launch_discord()
     
-    if config_manager.get_setting("start_gfn_on_launch", True):
+    if config_manager.get_setting("start_gfn_on_launch", False):
         AppLauncher.launch_geforce_now()
 
     # 5.2 Update Edge Driver

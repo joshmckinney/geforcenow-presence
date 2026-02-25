@@ -113,20 +113,21 @@ class SystemTrayIcon(QSystemTrayIcon):
         config_menu = self.menu.addMenu(TEXTS.get("tray_config", "Configuración"))
         
         # 1. Iniciar con Windows
-        start_win_action = QAction(TEXTS.get("config_start_windows", "Iniciar con Windows"), self.menu, checkable=True)
-        start_win_action.setChecked(self.config_manager.get_setting("start_with_windows", False))
-        start_win_action.triggered.connect(self.toggle_start_windows)
-        config_menu.addAction(start_win_action)
+        # TODO: Función implementada, pero carga excesivamente pesada para el sistema
+        #start_win_action = QAction(TEXTS.get("config_start_windows", "Iniciar con Windows"), self.menu, checkable=True)
+        #start_win_action.setChecked(self.config_manager.get_setting("start_with_windows", False))
+        #start_win_action.triggered.connect(self.toggle_start_windows)
+        #config_menu.addAction(start_win_action)
 
         # 2. Iniciar GeForce NOW
         start_gfn_action = QAction(TEXTS.get("config_start_gfn", "Iniciar GeForce NOW con la aplicación"), self.menu, checkable=True)
-        start_gfn_action.setChecked(self.config_manager.get_setting("start_gfn_on_launch", True))
+        start_gfn_action.setChecked(self.config_manager.get_setting("start_gfn_on_launch", False))
         start_gfn_action.triggered.connect(lambda chk: self.config_manager.set_setting("start_gfn_on_launch", chk))
         config_menu.addAction(start_gfn_action)
 
         # 3. Iniciar Discord
         start_discord_action = QAction(TEXTS.get("config_start_discord", "Iniciar Discord con la aplicación"), self.menu, checkable=True)
-        start_discord_action.setChecked(self.config_manager.get_setting("start_discord_on_launch", True))
+        start_discord_action.setChecked(self.config_manager.get_setting("start_discord_on_launch", False))
         start_discord_action.triggered.connect(lambda chk: self.config_manager.set_setting("start_discord_on_launch", chk))
         config_menu.addAction(start_discord_action)
 

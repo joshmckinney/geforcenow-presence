@@ -21,9 +21,9 @@ class ConfigManager:
         self.games_config_path: Optional[Path] = None
         self.app_settings: Dict = {
             "start_with_windows": False,
-            "start_gfn_on_launch": True,
-            "start_discord_on_launch": True,
-            "get_cookie_on_launch": True
+            "start_gfn_on_launch": False,
+            "start_discord_on_launch": False,
+            "get_cookie_on_launch": False
         }
         self.app_settings_path = CONFIG_DIR / "app_settings.json"
         self._load()
