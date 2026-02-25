@@ -16,9 +16,7 @@
   <a href="https://github.com/KarmaDevz/GeForce-NOW-Rich-Presence/releases">
     <img src="https://img.shields.io/github/downloads/KarmaDevz/discord-rich-presence-for-geforcenow/total?style=for-the-badge&color=2962FF&logo=github&label=Descargas%20Totales" alt="Descargas Totales" />
   </a>
-  <a href="https://github.com/KarmaDevz/discord-rich-presence-for-geforcenow">
-    <img src="https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2FKarmaDevz%2Fdiscord-rich-presence-for-geforcenow&count_bg=%232962FF&title_bg=%23555555&icon=github.svg&icon_color=%23E7E7E7&title=Visitas&edge_flat=true" alt="Visitas"/>
-  </a>
+ 
 </div>
 
 ---
