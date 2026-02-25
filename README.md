@@ -14,8 +14,12 @@
     <img src="https://img.shields.io/github/v/release/KarmaDevz/discord-rich-presence-for-geforcenow?style=for-the-badge&color=00C853&logo=github&label=Latest%20Release" alt="Latest Release"/>
   </a>
   <a href="https://github.com/KarmaDevz/GeForce-NOW-Rich-Presence/releases">
-    <img src="https://img.shields.io/github/downloads/KarmaDevz/discord-rich-presence-for-geforcenow/total?style=for-the-badge&color=2962FF&logo=github&label=Total%20Downloads"/>
+    <img src="https://img.shields.io/github/downloads/KarmaDevz/discord-rich-presence-for-geforcenow/total?style=for-the-badge&color=2962FF&logo=github&label=Total%20Downloads" alt="Total Downloads"/>
   </a>
+  <a href="https://github.com/KarmaDevz/discord-rich-presence-for-geforcenow">
+    <img src="https://img.shields.io/badge/dynamic/json?color=2962FF&label=Clones&query=count&url=https://api.countapi.xyz/hit/discord-rich-presence-for-geforcenow/clones&style=for-the-badge&logo=github" alt="GitHub clones" />
+  </a>
+  
 </div>
 
 ---
