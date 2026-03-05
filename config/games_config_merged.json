@@ -45810,7 +45810,7 @@
     },
     "It Takes Two": {
         "name": "It Takes Two",
-        "steam_appid": null,
+        "steam_appid": "1426210",
         "client_id": "1161772927566495865",
         "executable_path": "win64/ittakestwo.exe",
         "cmsId": "102269111",
