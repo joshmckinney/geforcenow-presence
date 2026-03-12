@@ -11,3 +11,12 @@ config/config_path.txt
 
 # IDE
 .idea/
+
+# Build and Release
+release/
+build/nfpm
+build/package/geforcenow-presence
+build/package/geforcenow-presence.service.tmp
+!build/package/geforcenow-presence.desktop
+!build/package/geforcenow-presence.service
+!build/package/*.sh

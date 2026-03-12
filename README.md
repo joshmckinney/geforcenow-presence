@@ -4,7 +4,7 @@
     <strong>Show your real game on Discord while playing on GeForce NOW — automatically, on Linux.</strong>
   </p>
   <p>
-    A compiled Go binary that monitors the <a href="https://github.com/hmlendea/gfn-electron">GeForce NOW Electron</a> Flatpak,
+    A compiled Go binary that monitors the <a href="https://international.download.nvidia.com/GFNLinux/flatpak/geforcenow.flatpakrepo">GeForce NOW</a> Flatpak,
     detects the game you're playing via the window title, and updates your Discord Rich Presence
     with the correct game name, artwork, and elapsed time.
   </p>
@@ -24,7 +24,7 @@
 ## ✨ Features
 
 - 🐧 **Native Linux support** — compiled Go binary, zero runtime dependencies
-- 🎮 **Automatic game detection** — reads the GeForce NOW Electron window title via GNOME Shell extension D-Bus
+- 🎮 **Automatic game detection** — reads the GeForce NOW window title via GNOME Shell extension D-Bus
 - 🖼️ **Zero-Auth Metadata Pipeline** — queries public Steam and GOG APIs to push live HTTP box-art URLs to Discord natively without developer keys
 - 🌟 **Native Discord Apps Tracking** — dynamically syncs with Discord's 22,000+ app database. Fuzzy matches game strings directly to official Client IDs to natively display the game on your profile.
 - 🚀 **Auto-start support** — systemd user service for background operation on login (toggleable via UI)
@@ -43,13 +43,13 @@
 | Requirement | Details |
 |:---|:---|
 | **OS** | Linux (tested on Fedora 43, should work on any distro with GNOME 45+) |
-| **GeForce NOW** | [GFN Electron Flatpak](https://github.com/hmlendea/gfn-electron) (`io.github.hmlendea.geforcenow-electron`) |
+| **GeForce NOW** | [Official Nvidia Flatpak](https://international.download.nvidia.com/GFNLinux/flatpak/geforcenow.flatpakrepo) (`com.nvidia.geforcenow`) |
 | **Discord** | Native install (RPM/DEB) or Flatpak |
 | **Go** | 1.25+ (build only — not needed to run the binary) |
 | **Build Dependencies** | `libayatana-appindicator3-dev` (Debian/Ubuntu) or `libayatana-appindicator-gtk3-devel` (Fedora/RHEL)<br>`libgtk-3-dev` (Debian/Ubuntu) or `gtk3-devel` (Fedora/RHEL) |
 | **Desktop** | GNOME on Wayland (primary), X11, Hyprland (experimental) |
 
-> **Note:** Running GeForce NOW via Chrome/Edge browser is **not currently supported** — only the Electron Flatpak app. Browser support could be added by detecting the browser window title similarly.
+> **Note:** Running GeForce NOW via Chrome/Edge browser is **not currently supported** — only the official Flatpak app. Browser support could be added by detecting the browser window title similarly.
 
 ---
 

@@ -27,7 +27,7 @@ geforcenow-presence/
 
 ## Adding Browser Support
 
-The monitor currently only targets the official GeForce NOW Electron Flatpak container (`geforcenow-electron`). To support playing GeForce NOW via Chrome/Edge browsers:
+The monitor currently only targets the official GeForce NOW Flatpak container (`GeForceNOW`). To support playing GeForce NOW via Chrome/Edge browsers:
 1. Modify `internal/detector/detector.go` to also scan for browser windows containing "GeForce NOW" in the title.
 2. The GNOME Shell extension already returns all matching windows — update the `filter()` in `extension.js` to include `chrome` or `chromium` in the Wayland `WM_CLASS` check.
 

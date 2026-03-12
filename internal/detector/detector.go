@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	gfnProcessName = "geforcenow-electron"
+	gfnProcessName = "GeForceNOW"
 	extensionUUID  = "window-title-server@geforcenow-presence"
 )
 
@@ -52,7 +52,7 @@ func (d *Detector) IsGFNRunning() bool {
 		if err != nil {
 			continue
 		}
-		if strings.Contains(string(cmdline), gfnProcessName) {
+		if strings.Contains(strings.ToLower(string(cmdline)), strings.ToLower(gfnProcessName)) {
 			return true
 		}
 	}
