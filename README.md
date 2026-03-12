@@ -9,15 +9,9 @@
     with the correct game name, artwork, and elapsed time.
   </p>
 
-  <a href="https://github.com/joshmckinney/geforcenow-presence/releases/latest">
-    <img src="https://img.shields.io/github/v/release/joshmckinney/geforcenow-presence?style=for-the-badge&color=00C853&logo=github&label=Latest%20Release" alt="Latest Release"/>
-  </a>
-  <a href="https://github.com/joshmckinney/geforcenow-presence/releases">
-    <img src="https://img.shields.io/github/downloads/joshmckinney/geforcenow-presence/total?style=for-the-badge&color=2962FF&logo=github&label=Downloads" alt="Total Downloads"/>
-  </a>
-  <a href="https://github.com/joshmckinney/geforcenow-presence/actions/workflows/ci.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/joshmckinney/geforcenow-presence/ci.yml?branch=main&style=for-the-badge&logo=github&label=Build" alt="Build Status"/>
-  </a>
+  [![Latest Release](https://img.shields.io/github/v/release/joshmckinney/geforcenow-presence?style=for-the-badge&color=00C853&logo=github)](https://github.com/joshmckinney/geforcenow-presence/releases/latest)
+  [![Downloads](https://img.shields.io/github/downloads/joshmckinney/geforcenow-presence/total?style=for-the-badge&color=2962FF&logo=github)](https://github.com/joshmckinney/geforcenow-presence/releases)
+  [![CI](https://github.com/joshmckinney/geforcenow-presence/actions/workflows/ci.yml/badge.svg)](https://github.com/joshmckinney/geforcenow-presence/actions/workflows/ci.yml)
 </div>
 
 ---
@@ -29,7 +23,7 @@
 - 🖼️ **Zero-Auth Metadata Pipeline** — queries public Steam and GOG APIs to push live HTTP box-art URLs to Discord natively without developer keys
 - 🌟 **Native Discord Apps Tracking** — dynamically syncs with Discord's 22,000+ app database. Fuzzy matches game strings directly to official Client IDs to natively display the game on your profile.
 - 🚀 **Auto-start support** — systemd user service for background operation on login (toggleable via UI)
-- ⚙️ **Persistent Configuration** — Polling intervals, startup delays, and language settings are saved and easily editable via the System Tray.
+- ⚙️ **Persistent Configuration** — Polling intervals (5s-60s), startup delays (0s-30s), and language settings are saved and easily editable via the System Tray.
 - 📂 **Quick Access** — Open logs or configuration folders directly from the tray.
 - 🧩 **Multi-compositor support** — GNOME (Wayland), X11 (xprop/xdotool), Hyprland, with fallback chain
 - 🔒 **Single instance** — lock file prevents duplicate processes

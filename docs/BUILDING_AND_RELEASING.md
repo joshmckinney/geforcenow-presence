@@ -43,7 +43,7 @@ This is the recommended command to run before tagging a release on GitHub.
 ## 🤖 Automated CI/CD
 
 The project uses GitHub Actions for continuous quality assurance:
-*   **Continuous Integration (`ci.yml`)**: Every push to `main` and all Pull Requests trigger a suite of tests including `go vet`, `go test`, and a full `make build` across standard Ubuntu environments.
+*   **Continuous Integration (`ci.yml`)**: Every push to `main` and all Pull Requests trigger a suite of quality checks including `go vet`, `golangci-lint`, `go test`, and a full `make build` across standard Ubuntu environments.
 *   **Automated Releases (`release.yml`)**: Tagging a release (e.g., `git tag v1.0.0`) automatically triggers a full `make dist` and uploads the resulting tarball, DEB, and RPM packages directly to the GitHub Release page.
 
 ## 🏗️ Installation Methods: Local vs. System
