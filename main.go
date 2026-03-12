@@ -153,14 +153,16 @@ func main() {
 				log.Printf("🎨 Colors updated: %v", colors)
 			case <-uiActs.CheckUpdates:
 				log.Println("🔍 Manual update check requested")
-				newTag, err := updater.CheckForUpdate(version)
-				if err != nil {
-					ui.ShowMessage("Update Check", "Error checking for updates: "+err.Error())
-				} else if newTag != "" {
-					ui.ShowUpdateAvailable(newTag)
-				} else {
-					ui.ShowMessage(i18n.T("tray_title", "GeForce NOW Presence"), i18n.T("update_up_to_date", "You are on the latest version!"))
-				}
+				go func() {
+					newTag, err := updater.CheckForUpdate(version)
+					if err != nil {
+						ui.ShowMessage("Update Check", "Error checking for updates: "+err.Error())
+					} else if newTag != "" {
+						ui.ShowUpdateAvailable(newTag)
+					} else {
+						ui.ShowMessage(i18n.T("tray_title", "GeForce NOW Presence"), i18n.T("update_up_to_date", "You are on the latest version!"))
+					}
+				}()
 			}
 	}
 	}()
