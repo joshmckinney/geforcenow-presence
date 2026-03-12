@@ -12,9 +12,9 @@
   [![Latest Release](https://img.shields.io/github/v/release/joshmckinney/geforcenow-presence?style=for-the-badge&color=00C853&logo=github)](https://github.com/joshmckinney/geforcenow-presence/releases/latest)
   [![Downloads](https://img.shields.io/github/downloads/joshmckinney/geforcenow-presence/total?style=for-the-badge&color=2962FF&logo=github)](https://github.com/joshmckinney/geforcenow-presence/releases)
   <br>
-  [![Lint](https://github.com/joshmckinney/geforcenow-presence/actions/workflows/lint.yml/badge.svg)](https://github.com/joshmckinney/geforcenow-presence/actions/workflows/lint.yml)
   [![Test](https://github.com/joshmckinney/geforcenow-presence/actions/workflows/test.yml/badge.svg)](https://github.com/joshmckinney/geforcenow-presence/actions/workflows/test.yml)
   [![Build](https://github.com/joshmckinney/geforcenow-presence/actions/workflows/build.yml/badge.svg)](https://github.com/joshmckinney/geforcenow-presence/actions/workflows/build.yml)
+  [![Lint](https://github.com/joshmckinney/geforcenow-presence/actions/workflows/lint.yml/badge.svg)](https://github.com/joshmckinney/geforcenow-presence/actions/workflows/lint.yml)
 </div>
 
 ---
