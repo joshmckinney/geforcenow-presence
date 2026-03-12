@@ -5,6 +5,7 @@ import (
 	"log"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -128,8 +129,21 @@ func onReady() {
 	}
 	
 	langs := i18n.GetAvailableLanguages(sysLangDir)
+	
+	type langItem struct {
+		code string
+		name string
+	}
+	var sortedLangs []langItem
 	for code, name := range langs {
-		item := mLanguage.AddSubMenuItemCheckbox(name, "", currLang == code)
+		sortedLangs = append(sortedLangs, langItem{code, name})
+	}
+	sort.Slice(sortedLangs, func(i, j int) bool {
+		return sortedLangs[i].name < sortedLangs[j].name
+	})
+
+	for _, l := range sortedLangs {
+		item := mLanguage.AddSubMenuItemCheckbox(l.name, "", currLang == l.code)
 		
 		go func(menuItem *systray.MenuItem, langCode string) {
 			for range menuItem.ClickedCh {
@@ -137,7 +151,7 @@ func onReady() {
 					acts.ChangeLanguage <- langCode
 				}
 			}
-		}(item, code)
+		}(item, l.code)
 	}
 
 	mConfig := systray.AddMenuItem(i18n.T("tray_config", "Configuration"), "")
@@ -159,7 +173,7 @@ func onReady() {
 
 	mCheck := systray.AddMenuItem(i18n.T("tray_check_updates", "Check for Updates"), "")
 	systray.AddSeparator()
-	mVersion := systray.AddMenuItem("v"+appVersion, "")
+	mVersion := systray.AddMenuItem(appVersion, "")
 	mVersion.Disable()
 	mExit := systray.AddMenuItem(i18n.T("tray_exit", "Exit"), "")
 

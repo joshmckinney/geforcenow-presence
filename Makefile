@@ -32,7 +32,7 @@ test: build
 
 # ─── Install ─────────────────────────────────────────────────────────
 install: build
-	@echo "── Installing $(BINARY) v$(VERSION) ──"
+	@echo "── Installing $(BINARY) $(VERSION) ──"
 
 	@# Binary
 	install -Dm755 $(BINARY) $(BINDIR)/$(BINARY)
