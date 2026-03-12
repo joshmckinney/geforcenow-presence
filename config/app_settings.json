@@ -1,6 +1,7 @@
 {
-    "start_with_windows": true,
-    "start_gfn_on_launch": true,
-    "start_discord_on_launch": true,
-    "get_cookie_on_launch": false
+    "language": "",
+    "start_gfn_on_launch": false,
+    "start_discord_on_launch": false,
+    "polling_interval": 10,
+    "startup_delay": 5
 }

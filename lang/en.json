@@ -18,8 +18,8 @@
     "tray_config": "Configuration",
     "config_start_gfn": "Start GeForce NOW on launch",
     "config_start_discord": "Start Discord on launch",
-    "tray_polling_interval": "Polling Interval",
-    "tray_startup_delay": "Startup Delay",
+    "tray_polling_interval": "Interval: %ds",
+    "tray_startup_delay": "Delay: %ds",
     "tray_open_config_dir": "Open Configuration Folder",
     "tray_auto_start": "Auto-start on Login",
     "force_game_prompt": "What game will you force today?",
@@ -29,5 +29,7 @@
     "already_running_discord": "💡 Discord is already running",
     "launching": "🚀 Launching GeForce NOW...",
     "launching_discord": "🚀 Launching Discord...",
-    "lock_exists_running": "Another instance is running"
+    "lock_exists_running": "Another instance is running",
+    "tray_custom_prompt_interval": "Enter polling interval in seconds:",
+    "tray_custom_prompt_delay": "Enter startup delay in seconds:"
 }

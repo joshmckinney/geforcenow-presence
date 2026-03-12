@@ -28,7 +28,7 @@
 - 🖼️ **Zero-Auth Metadata Pipeline** — queries public Steam and GOG APIs to push live HTTP box-art URLs to Discord natively without developer keys
 - 🌟 **Native Discord Apps Tracking** — dynamically syncs with Discord's 22,000+ app database. Fuzzy matches game strings directly to official Client IDs to natively display the game on your profile.
 - 🚀 **Auto-start support** — systemd user service for background operation on login (toggleable via UI)
-- ⚙️ **Persistent Configuration** — Polling intervals (5s-60s), startup delays (0s-30s), and language settings are saved and easily editable via the System Tray.
+- ⚙️ **Persistent Configuration** — Polling intervals (default 10s), startup delays (default 5s), and language settings are saved and easily editable via the System Tray.
 - 📂 **Quick Access** — Open logs or configuration folders directly from the tray.
 - 🧩 **Multi-compositor support** — GNOME (Wayland), X11 (xprop/xdotool), Hyprland, with fallback chain
 - 🔒 **Single instance** — lock file prevents duplicate processes
@@ -43,7 +43,7 @@
 | **OS** | Linux (tested on Fedora 43, should work on any distro with GNOME 45+) |
 | **GeForce NOW** | [GFN Electron Flatpak](https://github.com/hmlendea/gfn-electron) (`io.github.hmlendea.geforcenow-electron`) |
 | **Discord** | Native install (RPM/DEB) or Flatpak |
-| **Go** | 1.21+ (build only — not needed to run the binary) |
+| **Go** | 1.25+ (build only — not needed to run the binary) |
 | **Build Dependencies** | `libayatana-appindicator3-dev` (Debian/Ubuntu) or `libayatana-appindicator-gtk3-devel` (Fedora/RHEL)<br>`libgtk-3-dev` (Debian/Ubuntu) or `gtk3-devel` (Fedora/RHEL) |
 | **Desktop** | GNOME on Wayland (primary), X11, Hyprland (experimental) |
 
@@ -57,12 +57,6 @@
 # Clone and build
 git clone https://github.com/joshmckinney/geforcenow-presence.git
 cd geforcenow-presence
-make build
-
-# Run directly (development mode — uses config/ in the repo)
-./geforcenow-presence
-
-# Install system-wide for the current user (installs to ~/.local/bin)
 make install
 ```
 
@@ -136,8 +130,8 @@ rm -rf ~/.config/geforcenow-presence
 
 # Tray Management
 The System Tray provides easy access to:
-- **Polling Interval**: (5s, 10s, 30s, 60s)
-- **Startup Delay**: (0s, 5s, 10s, 30s)
+- **Interval**: Current polling rate (Click to change to any integer)
+- **Delay**: Current startup delay (Click to change to any integer)
 - **Auto-start on Login**: Enable/Disable the background service
 - **Language**: Switch between available translations
 - **Open Config Folder**: Quickly access your local settings

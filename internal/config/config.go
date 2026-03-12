@@ -35,7 +35,7 @@ func NewManager(configDir string) *Manager {
 			StartGFNOnLaunch:     false,
 			StartDiscordOnLaunch: false,
 			PollingInterval:      10,
-			StartupDelay:         0,
+			StartupDelay:         5,
 		},
 	}
 	m.load()

@@ -5,6 +5,7 @@ import (
 	"log"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/joshmckinney/geforcenow-presence/internal/config"
@@ -29,8 +30,8 @@ var acts Actions
 var configMgr *config.Manager
 var sysLangDir string
 var mPlaying *systray.MenuItem
-var mIntervalItems map[int]*systray.MenuItem
-var mDelayItems map[int]*systray.MenuItem
+var mInterval *systray.MenuItem
+var mDelay *systray.MenuItem
 
 // StartTray initializes and starts the system tray.
 func StartTray(mgr *config.Manager, langDir string) Actions {
@@ -131,33 +132,9 @@ func onReady() {
 	mStartGFN := mConfig.AddSubMenuItemCheckbox(i18n.T("config_start_gfn", "Start GeForce NOW on launch"), "", configMgr.GetSettings().StartGFNOnLaunch)
 	mStartDisc := mConfig.AddSubMenuItemCheckbox(i18n.T("config_start_discord", "Start Discord on launch"), "", configMgr.GetSettings().StartDiscordOnLaunch)
 
-	mInterval := mConfig.AddSubMenuItem(i18n.T("tray_polling_interval", "Polling Interval"), "")
-	mIntervalItems = make(map[int]*systray.MenuItem)
-	intervals := []int{5, 10, 30, 60}
-	currInterval := configMgr.GetSettings().PollingInterval
-	for _, v := range intervals {
-		item := mInterval.AddSubMenuItemCheckbox(fmt.Sprintf("%ds", v), "", currInterval == v)
-		mIntervalItems[v] = item
-		go func(menuItem *systray.MenuItem, val int) {
-			for range menuItem.ClickedCh {
-				acts.SetInterval <- val
-			}
-		}(item, v)
-	}
-
-	mDelayItems = make(map[int]*systray.MenuItem)
-	mDelay := mConfig.AddSubMenuItem(i18n.T("tray_startup_delay", "Startup Delay"), "")
-	delays := []int{0, 5, 10, 30}
-	currDelay := configMgr.GetSettings().StartupDelay
-	for _, v := range delays {
-		item := mDelay.AddSubMenuItemCheckbox(fmt.Sprintf("%ds", v), "", currDelay == v)
-		mDelayItems[v] = item
-		go func(menuItem *systray.MenuItem, val int) {
-			for range menuItem.ClickedCh {
-				acts.SetDelay <- val
-			}
-		}(item, v)
-	}
+	s := configMgr.GetSettings()
+	mInterval = mConfig.AddSubMenuItem(fmt.Sprintf(i18n.T("tray_polling_interval", "Interval: %ds"), s.PollingInterval), "")
+	mDelay = mConfig.AddSubMenuItem(fmt.Sprintf(i18n.T("tray_startup_delay", "Delay: %ds"), s.StartupDelay), "")
 
 	mOpenConfig := mConfig.AddSubMenuItem(i18n.T("tray_open_config_dir", "Open Configuration Folder"), "")
 
@@ -170,7 +147,7 @@ func onReady() {
 		for {
 			select {
 			case <-mForce.ClickedCh:
-				input := promptForString(i18n.T("force_game_prompt", "What game will you force today?"))
+				input := promptForString(i18n.T("force_game_prompt", "What game will you force today?"), "")
 				if input != "" {
 					acts.OverrideChan <- input
 				}
@@ -194,6 +171,18 @@ func onReady() {
 					mStartDisc.Uncheck()
 				}
 				acts.ToggleConfigDisc <- val
+			case <-mInterval.ClickedCh:
+				curr := configMgr.GetSettings().PollingInterval
+				input := promptForString(i18n.T("tray_custom_prompt_interval", "Enter polling interval in seconds:"), strconv.Itoa(curr))
+				if val, err := strconv.Atoi(input); err == nil && val > 0 {
+					acts.SetInterval <- val
+				}
+			case <-mDelay.ClickedCh:
+				curr := configMgr.GetSettings().StartupDelay
+				input := promptForString(i18n.T("tray_custom_prompt_delay", "Enter startup delay in seconds:"), strconv.Itoa(curr))
+				if val, err := strconv.Atoi(input); err == nil && val >= 0 {
+					acts.SetDelay <- val
+				}
 			case <-mOpenConfig.ClickedCh:
 				acts.OpenConfigDir <- struct{}{}
 			case <-mAutoStart.ClickedCh:
@@ -216,25 +205,17 @@ func onExit() {
 	// Clean up if needed
 }
 
-// UpdateIntervalItems updates the checked state for the interval submenu.
+// UpdateIntervalItems updates the label for the interval menu item.
 func UpdateIntervalItems(current int) {
-	for val, item := range mIntervalItems {
-		if val == current {
-			item.Check()
-		} else {
-			item.Uncheck()
-		}
+	if mInterval != nil {
+		mInterval.SetTitle(fmt.Sprintf(i18n.T("tray_polling_interval", "Interval: %ds"), current))
 	}
 }
 
-// UpdateDelayItems updates the checked state for the delay submenu.
+// UpdateDelayItems updates the label for the delay menu item.
 func UpdateDelayItems(current int) {
-	for val, item := range mDelayItems {
-		if val == current {
-			item.Check()
-		} else {
-			item.Uncheck()
-		}
+	if mDelay != nil {
+		mDelay.SetTitle(fmt.Sprintf(i18n.T("tray_startup_delay", "Delay: %ds"), current))
 	}
 }
 
@@ -244,14 +225,18 @@ func isAutoStartEnabled() bool {
 	return err == nil
 }
 
-func promptForString(prompt string) string {
+func promptForString(prompt string, defaultVal string) string {
 	// Try zenity
-	out, err := exec.Command("zenity", "--entry", "--text", prompt).Output()
+	args := []string{"--entry", "--text", prompt}
+	if defaultVal != "" {
+		args = append(args, "--entry-text", defaultVal)
+	}
+	out, err := exec.Command("zenity", args...).Output()
 	if err == nil {
 		return strings.TrimSpace(string(out))
 	}
 	// Try kdialog
-	out, err = exec.Command("kdialog", "--inputbox", prompt).Output()
+	out, err = exec.Command("kdialog", "--inputbox", prompt, defaultVal).Output()
 	if err == nil {
 		return strings.TrimSpace(string(out))
 	}
