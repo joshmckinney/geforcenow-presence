@@ -25,6 +25,7 @@ type Actions struct {
 	ToggleAutoStart  chan bool
 	UpdateClicked    chan struct{}
 	CheckUpdates     chan struct{}
+	SetColor         chan map[string]string
 	QuitChan         chan struct{}
 }
 
@@ -51,6 +52,7 @@ func StartTray(mgr *config.Manager, langDir string) Actions {
 		ToggleAutoStart:  make(chan bool, 1),
 		UpdateClicked:    make(chan struct{}, 1),
 		CheckUpdates:     make(chan struct{}, 1),
+		SetColor:         make(chan map[string]string, 1),
 		QuitChan:         make(chan struct{}),
 	}
 	go systray.Run(onReady, onExit)
@@ -146,6 +148,11 @@ func onReady() {
 
 	mOpenConfig := mConfig.AddSubMenuItem(i18n.T("tray_open_config_dir", "Open Configuration Folder"), "")
 
+	mColors := mConfig.AddSubMenuItem(i18n.T("tray_custom_colors", "Custom Status Colors"), "")
+	mPlayCol := mColors.AddSubMenuItem(i18n.T("tray_color_playing", "Playing Color..."), "")
+	mWaitCol := mColors.AddSubMenuItem(i18n.T("tray_color_waiting", "Idle Color..."), "")
+	mErrCol := mColors.AddSubMenuItem(i18n.T("tray_color_error", "Error Color..."), "")
+
 	mAutoStart := mConfig.AddSubMenuItemCheckbox(i18n.T("tray_auto_start", "Auto-start on Login"), "", isAutoStartEnabled())
 
 	mCheck := systray.AddMenuItem(i18n.T("tray_check_updates", "Check for Updates"), "")
@@ -204,6 +211,22 @@ func onReady() {
 				acts.ToggleAutoStart <- val
 			case <-mUpdate.ClickedCh:
 				acts.UpdateClicked <- struct{}{}
+			case <-mPlayCol.ClickedCh:
+				curr := configMgr.GetSettings().StatusColors["playing"]
+				if col := pickColor(curr); col != "" {
+					acts.SetColor <- map[string]string{"playing": col}
+				}
+			case <-mWaitCol.ClickedCh:
+				curr := configMgr.GetSettings().StatusColors["waiting"]
+				if col := pickColor(curr); col != "" {
+					acts.SetColor <- map[string]string{"waiting": col}
+				}
+			case <-mErrCol.ClickedCh:
+				curr := configMgr.GetSettings().StatusColors["error"]
+				if col := pickColor(curr); col != "" {
+					acts.SetColor <- map[string]string{"error": col}
+					acts.SetColor <- map[string]string{"disconnected": col}
+				}
 			case <-mCheck.ClickedCh:
 				acts.CheckUpdates <- struct{}{}
 			case <-mExit.ClickedCh:
@@ -226,6 +249,14 @@ func ShowUpdateAvailable(tagName string) {
 func ShowMessage(title, msg string) {
 	// Use Zenity for simple info dialog
 	exec.Command("zenity", "--info", "--title", title, "--text", msg, "--no-wrap").Run()
+}
+
+func pickColor(current string) string {
+	out, err := exec.Command("zenity", "--color-selection", "--color", current).Output()
+	if err == nil {
+		return strings.TrimSpace(string(out))
+	}
+	return ""
 }
 
 func onExit() {

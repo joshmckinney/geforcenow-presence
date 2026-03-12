@@ -13,8 +13,9 @@ type AppSettings struct {
 	Language             string `json:"language"`
 	StartGFNOnLaunch     bool   `json:"start_gfn_on_launch"`
 	StartDiscordOnLaunch bool   `json:"start_discord_on_launch"`
-	PollingInterval      int    `json:"polling_interval"`
-	StartupDelay         int    `json:"startup_delay"`
+	PollingInterval      int               `json:"polling_interval"`
+	StartupDelay         int               `json:"startup_delay"`
+	StatusColors         map[string]string `json:"status_colors"`
 }
 
 // Manager handles loading and saving configuration.
@@ -36,6 +37,12 @@ func NewManager(configDir string) *Manager {
 			StartDiscordOnLaunch: false,
 			PollingInterval:      10,
 			StartupDelay:         5,
+			StatusColors: map[string]string{
+				"playing":      "#2ecc71",
+				"waiting":      "#f1c40f",
+				"error":        "#e74c3c",
+				"disconnected": "#e74c3c",
+			},
 		},
 	}
 	m.load()

@@ -67,6 +67,7 @@ func main() {
 
 	configMgr := config.NewManager(configDir)
 	settings := configMgr.GetSettings()
+	ui.RebuildIcons(settings.StatusColors)
 
 	if *delay == 0 {
 		*delay = settings.StartupDelay
@@ -139,6 +140,17 @@ func main() {
 				toggleAutoStart(val)
 			case <-uiActs.UpdateClicked:
 				openURL(updater.GetReleasesURL())
+			case colors := <-uiActs.SetColor:
+				s := configMgr.GetSettings()
+				for k, v := range colors {
+					if s.StatusColors == nil {
+						s.StatusColors = make(map[string]string)
+					}
+					s.StatusColors[k] = v
+				}
+				configMgr.SetSettings(s)
+				ui.RebuildIcons(s.StatusColors)
+				log.Printf("🎨 Colors updated: %v", colors)
 			case <-uiActs.CheckUpdates:
 				log.Println("🔍 Manual update check requested")
 				newTag, err := updater.CheckForUpdate(version)

@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -50,8 +51,8 @@ func TestSaveAndLoadSettings(t *testing.T) {
 	m2 := NewManager(tmpDir)
 	loadedSettings := m2.GetSettings()
 
-	if loadedSettings != newSettings {
-		t.Errorf("Loaded settings %+v do not match saved settings %+v", loadedSettings, newSettings)
+	if !reflect.DeepEqual(loadedSettings, newSettings) {
+		t.Errorf("Expected %+v, got %+v", newSettings, loadedSettings)
 	}
 }
 
