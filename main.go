@@ -55,8 +55,6 @@ func main() {
 
 	log.Printf("GeForce NOW Rich Presence v%s (Linux/Go)", version)
 
-	log.Printf("GeForce NOW Rich Presence v%s (Linux/Go)", version)
-
 	lockFile := filepath.Join(os.TempDir(), "geforce_presence.lock")
 	if !acquireLock(lockFile) {
 		log.Println("⚠️ Another instance is already running. Exiting.")
