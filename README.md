@@ -64,7 +64,17 @@ After the first run, **log out and back in** to activate the GNOME Shell extensi
 
 ---
 
-## 📥 Installation (`make install`)
+## 📥 Installation
+
+### 📦 Native Packages (Recommended)
+Download the latest release for your distribution:
+- **Debian / Ubuntu / Mint**: `.deb` package
+- **Fedora / RHEL / openSUSE**: `.rpm` package
+- **Generic Linux**: `.tar.gz` bundle
+
+Install using your package manager (e.g., `sudo dnf install ./geforcenow-presence.rpm`).
+
+### 🛠️ Build from Source (`make install`)
 
 `make install` sets up everything needed for production use:
 
