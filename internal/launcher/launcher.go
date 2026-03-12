@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const gfnFlatpakID = "io.github.hmlendea.geforcenow-electron"
+const gfnFlatpakID = "com.nvidia.geforcenow"
 
 // IsProcessRunning checks if a process with the given name substring is running.
 func IsProcessRunning(nameSubstr string) bool {
@@ -38,7 +38,7 @@ func IsProcessRunning(nameSubstr string) bool {
 
 // LaunchGFN starts the GeForce NOW Electron Flatpak.
 func LaunchGFN() bool {
-	if IsProcessRunning("geforcenow-electron") {
+	if IsProcessRunning("GeForceNOW") {
 		log.Println("💡 GeForce NOW is already running")
 		return true
 	}
