@@ -75,9 +75,16 @@ func SetStatus(state string, gameName string) {
 		}
 	case "error":
 		systray.SetIcon(iconRed)
-		systray.SetTooltip(i18n.T("tooltip_error", "GeForce NOW: Discord RPC Error / Disconnected"))
+		systray.SetTooltip(i18n.T("tooltip_error", "GeForce NOW: Discord RPC Error"))
 		if mPlaying != nil {
 			mPlaying.SetTitle(i18n.T("status_error", "Status: Discord Error"))
+			mPlaying.Show()
+		}
+	case "disconnected":
+		systray.SetIcon(iconRed)
+		systray.SetTooltip(i18n.T("tooltip_disconnected", "GeForce NOW: Not Running"))
+		if mPlaying != nil {
+			mPlaying.SetTitle(i18n.T("status_disconnected", "Status: Not Running"))
 			mPlaying.Show()
 		}
 	}

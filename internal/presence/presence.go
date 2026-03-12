@@ -70,7 +70,22 @@ func (m *Manager) Run(stop <-chan struct{}, overrideChan <-chan string) {
 func (m *Manager) check() {
 	var gameName string
 
-	// Use override if set, otherwise try auto-detection
+	// First check if GFN is running at all
+	if !m.detector.IsGFNRunning() {
+		if m.lastGame != "" {
+			log.Println("🎮 GFN closed, clearing presence")
+			m.clearPresence()
+			m.lastGame = ""
+			m.lastImageURL = ""
+			m.lastClientID = ""
+			m.startTime = 0
+		}
+		ui.SetStatus("disconnected", "")
+		m.logOnce("⚠️ GeForce NOW is not running")
+		return
+	}
+
+	// GFN is running, now check for a game
 	if m.overrideGame != "" {
 		gameName = m.overrideGame
 	} else {
