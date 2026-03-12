@@ -119,7 +119,9 @@ func (c *AppsCache) saveToFile() {
 	if err != nil {
 		return
 	}
-	os.WriteFile(c.cacheFile, data, 0644)
+	if err := os.WriteFile(c.cacheFile, data, 0644); err != nil {
+		log.Printf("⚠️ Error writing apps cache: %v", err)
+	}
 }
 
 func (c *AppsCache) fetchFromAPI() ([]DiscordApp, error) {

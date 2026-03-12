@@ -85,7 +85,9 @@ func TestGetAvailableLanguages(t *testing.T) {
 	}
 	
 	langNoName := `{"key": "value"}`
-	os.WriteFile(filepath.Join(tmpDir, "de.json"), []byte(langNoName), 0644)
+	if err := os.WriteFile(filepath.Join(tmpDir, "de.json"), []byte(langNoName), 0644); err != nil {
+		t.Fatalf("Failed to write mock config: %v", err)
+	}
 
 	langs := GetAvailableLanguages(tmpDir)
 	if langs["en"] != "English" {
