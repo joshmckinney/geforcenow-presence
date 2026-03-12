@@ -43,14 +43,29 @@ func NewManager(configDir string) *Manager {
 }
 
 func (m *Manager) load() {
+	// Try user config first
 	data, err := os.ReadFile(m.appSettingsPath)
 	if err == nil {
-		if err := json.Unmarshal(data, &m.appSettings); err != nil {
-			log.Printf("⚠️ Error parsing app_settings.json: %v", err)
+		if err := json.Unmarshal(data, &m.appSettings); err == nil {
+			return
 		}
-	} else {
-		m.saveAppSettings()
+		log.Printf("⚠️ Error parsing user app_settings.json: %v", err)
 	}
+
+	// Try system fallback (/etc/geforcenow-presence/app_settings.json)
+	systemPath := "/etc/geforcenow-presence/app_settings.json"
+	data, err = os.ReadFile(systemPath)
+	if err == nil {
+		if err := json.Unmarshal(data, &m.appSettings); err == nil {
+			log.Println("✅ Loaded system-wide default settings")
+			// Immediately save to user dir for persistence
+			m.saveAppSettings()
+			return
+		}
+	}
+
+	// Fallback to defaults
+	m.saveAppSettings()
 }
 
 func (m *Manager) saveAppSettings() {

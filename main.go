@@ -29,9 +29,9 @@ func main() {
 	interval := flag.Int("interval", 10, "Polling interval in seconds")
 	flag.Parse()
 
-	baseDir := getBaseDir()
+	configDir, assetDir := getPaths()
 
-	logDir := filepath.Join(baseDir, "logs")
+	logDir := filepath.Join(configDir, "logs")
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating log directory: %v\n", err)
 	}
@@ -64,10 +64,6 @@ func main() {
 	}
 	defer releaseLock(lockFile)
 
-	configDir := filepath.Join(baseDir, "config")
-	if _, err := os.Stat(filepath.Join(configDir, "app_settings.json")); err != nil {
-		configDir = baseDir
-	}
 	configMgr := config.NewManager(configDir)
 	settings := configMgr.GetSettings()
 
@@ -79,7 +75,7 @@ func main() {
 		time.Sleep(time.Duration(*delay) * time.Second)
 	}
 
-	langDir := filepath.Join(baseDir, "lang")
+	langDir := filepath.Join(assetDir, "lang")
 	lang := i18n.DetectLanguage(settings.Language)
 	i18n.LoadLocale(langDir, lang)
 	log.Printf("🌐 Language: %s", lang)
@@ -172,32 +168,40 @@ func main() {
 	log.Println("👋 GeForce NOW Rich Presence stopped")
 }
 
-func getBaseDir() string {
+func getPaths() (string, string) {
+	// 1. Determine Config Dir (Always writeable for state/settings)
 	xdgConfig := os.Getenv("XDG_CONFIG_HOME")
 	if xdgConfig == "" {
 		xdgConfig = filepath.Join(os.Getenv("HOME"), ".config")
 	}
-	installedDir := filepath.Join(xdgConfig, "geforcenow-presence")
-	if _, err := os.Stat(filepath.Join(installedDir, "app_settings.json")); err == nil {
-		return installedDir
+	userConfigDir := filepath.Join(xdgConfig, "geforcenow-presence")
+
+	// 2. Determine Asset Dir (lang files, shared resources)
+	// Priority: 
+	// - Local install (next to binary / .local)
+	// - System install (/usr/share)
+
+	// Local check (installed via make install or running from source)
+	exe, _ := os.Executable()
+	exeDir := filepath.Dir(exe)
+	localLang := filepath.Join(exeDir, "lang")
+	if _, err := os.Stat(localLang); err == nil {
+		return userConfigDir, exeDir
 	}
 
-	exe, err := os.Executable()
-	if err == nil {
-		exeDir := filepath.Dir(exe)
-		if _, err := os.Stat(filepath.Join(exeDir, "config")); err == nil {
-			return exeDir
-		}
+	// Development check (running from repo root)
+	wd, _ := os.Getwd()
+	if _, err := os.Stat(filepath.Join(wd, "lang")); err == nil {
+		return userConfigDir, wd
 	}
 
-	wd, err := os.Getwd()
-	if err == nil {
-		if _, err := os.Stat(filepath.Join(wd, "config")); err == nil {
-			return wd
-		}
+	// System-wide install (/usr/share)
+	systemAssetDir := "/usr/share/geforcenow-presence"
+	if _, err := os.Stat(filepath.Join(systemAssetDir, "lang")); err == nil {
+		return userConfigDir, systemAssetDir
 	}
 
-	return "."
+	return userConfigDir, "."
 }
 
 func acquireLock(lockFile string) bool {
