@@ -126,14 +126,14 @@ status:
 # ─── Release ─────────────────────────────────────────────────────────
 release: build
 	@echo "── Building release archive ──"
-	rm -rf release/$(BINARY)-v$(VERSION)
-	mkdir -p release/$(BINARY)-v$(VERSION)
-	cp $(BINARY) release/$(BINARY)-v$(VERSION)/
-	cp -r config release/$(BINARY)-v$(VERSION)/
-	cp -r lang release/$(BINARY)-v$(VERSION)/
-	cp -r gnome-extension release/$(BINARY)-v$(VERSION)/
-	cp README.md LICENSE Makefile release/$(BINARY)-v$(VERSION)/
-	cd release && tar -czvf $(BINARY)-linux-amd64-v$(VERSION).tar.gz $(BINARY)-v$(VERSION)/
+	rm -rf release/$(BINARY)-$(VERSION)
+	mkdir -p release/$(BINARY)-$(VERSION)
+	cp $(BINARY) release/$(BINARY)-$(VERSION)/
+	cp -r config release/$(BINARY)-$(VERSION)/
+	cp -r lang release/$(BINARY)-$(VERSION)/
+	cp -r gnome-extension release/$(BINARY)-$(VERSION)/
+	cp README.md LICENSE Makefile release/$(BINARY)-$(VERSION)/
+	cd release && tar -czvf $(BINARY)-linux-amd64-$(VERSION).tar.gz $(BINARY)-$(VERSION)/
 	@echo "── Generating Checksums ──"
 	cd release && sha256sum $(BINARY)-linux-amd64-v$(VERSION).tar.gz > SHA256SUMS
 	@echo "✅ Release archive and checksums created in release/"
