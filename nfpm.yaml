@@ -28,6 +28,18 @@ contents:
   - src: "build/package/geforcenow-presence.desktop"
     dst: "/usr/share/applications/geforcenow-presence.desktop"
 
+overrides:
+  rpm:
+    depends:
+      - libayatana-appindicator
+      - zenity
+      - xdg-utils
+  deb:
+    depends:
+      - libayatana-appindicator3-1
+      - zenity
+      - xdg-utils
+
 scripts:
   postinstall: build/package/postinstall.sh
   preremove: build/package/preremove.sh
