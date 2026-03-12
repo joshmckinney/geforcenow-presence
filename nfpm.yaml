@@ -31,7 +31,7 @@ contents:
 overrides:
   rpm:
     depends:
-      - libayatana-appindicator
+      - libayatana-appindicator-gtk3
       - zenity
       - xdg-utils
   deb:
