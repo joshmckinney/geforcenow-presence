@@ -14,7 +14,7 @@ func TestNewManager(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	m := NewManager(tmpDir)
+	m := NewManager(tmpDir, tmpDir)
 	if m == nil {
 		t.Fatal("Expected NewManager to return a non-nil manager")
 	}
@@ -36,7 +36,7 @@ func TestSaveAndLoadSettings(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	m := NewManager(tmpDir)
+	m := NewManager(tmpDir, tmpDir)
 	newSettings := AppSettings{
 		Language:             "fr",
 		StartGFNOnLaunch:     true,
@@ -48,7 +48,7 @@ func TestSaveAndLoadSettings(t *testing.T) {
 	m.SetSettings(newSettings)
 
 	// Create a new manager to verify loading from disk
-	m2 := NewManager(tmpDir)
+	m2 := NewManager(tmpDir, tmpDir)
 	loadedSettings := m2.GetSettings()
 
 	if !reflect.DeepEqual(loadedSettings, newSettings) {
@@ -73,7 +73,7 @@ func TestLoadExistingFile(t *testing.T) {
 		t.Fatalf("Failed to write mock config file: %v", err)
 	}
 
-	m := NewManager(tmpDir)
+	m := NewManager(tmpDir, tmpDir)
 	settings := m.GetSettings()
 
 	if settings.Language != "de" {

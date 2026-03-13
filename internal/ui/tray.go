@@ -334,7 +334,7 @@ func openLogs() {
 	if configMgr == nil {
 		return
 	}
-	logFile := filepath.Join(configMgr.GetConfigDir(), "logs", "geforce_presence.log")
+	logFile := filepath.Join(configMgr.GetStateDir(), "geforce_presence.log")
 	if err := exec.Command("xdg-open", logFile).Start(); err != nil {
 		log.Printf("❌ Failed to open log file: %v", err)
 	}
