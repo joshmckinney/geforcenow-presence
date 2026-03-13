@@ -54,8 +54,8 @@ func IsProcessRunning(nameSubstr string) bool {
 		// Tight match on the binary name or generic substring match for flatpaks
 		var matches bool
 		if nameL == "geforcenow" {
-			// Special handling for GFN to ignore zygotes/helpers and ghosts (no args)
-			matches = (exeBase == "geforcenow" && !isHelper && len(cleanParts) > 1) ||
+			// Special handling for GFN to ignore zygotes/helpers
+			matches = (exeBase == "geforcenow" && !isHelper) ||
 				(strings.Contains(cmdlineStr, "com.nvidia.geforcenow") &&
 					(strings.Contains(exeBase, "flatpak") || strings.Contains(exeBase, "bwrap")) &&
 					!strings.Contains(exeBase, "spawn"))

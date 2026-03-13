@@ -77,8 +77,9 @@ func (d *Detector) IsGFNRunning() bool {
 		}
 
 		// Check for GeForceNOW main process
-		// We expect at least one argument for the main process (ghosts often have none)
-		isGFNMain := strings.EqualFold(exeBase, gfnProcessName) && !isTypeArgument && len(cleanParts) > 1
+		// Note: We used to require len(cleanParts) > 1 to avoid "ghost" processes,
+		// but it turns out the main launcher itself can sometimes have no arguments.
+		isGFNMain := strings.EqualFold(exeBase, gfnProcessName) && !isTypeArgument
 
 		// Check for Flatpak/bwrap wrapper
 		cmdStrForWrapper := strings.ToLower(string(cmdline))
