@@ -80,6 +80,11 @@ func (m *Manager) load() {
 }
 
 func (m *Manager) saveAppSettings() {
+	if err := os.MkdirAll(m.configDir, 0755); err != nil {
+		log.Printf("❌ Error creating config directory: %v", err)
+		return
+	}
+
 	data, err := json.MarshalIndent(m.appSettings, "", "    ")
 	if err != nil {
 		log.Printf("❌ Error marshaling app settings: %v", err)

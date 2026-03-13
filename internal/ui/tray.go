@@ -176,7 +176,7 @@ func onReady() {
 
 	mCheck := systray.AddMenuItem(i18n.T("tray_check_updates", "Check for Updates"), "")
 	systray.AddSeparator()
-	mVersion := systray.AddMenuItem(appVersion, "")
+	mVersion := systray.AddMenuItem(fmt.Sprintf(i18n.T("tray_version", "Version: %s"), appVersion), "")
 	mVersion.Disable()
 	mExit := systray.AddMenuItem(i18n.T("tray_exit", "Exit"), "")
 
