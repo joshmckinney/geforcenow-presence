@@ -46,6 +46,21 @@ The project uses GitHub Actions for continuous quality assurance:
 *   **Continuous Integration (`lint.yml`, `test.yml`, `build.yml`)**: Quality assurance is split into granular stages. Every push to `main` and all Pull Requests trigger dedicated workflows for `lint` (vet/linting), `test` (unit tests), and `build` (compilation) to provide detailed feedback via individual status badges.
 *   **Automated Releases (`release.yml`)**: Tagging a release (e.g., `git tag v0.1.0-beta`) automatically triggers a full `make dist` and uploads the resulting tarball, DEB, and RPM packages directly to the GitHub Release page.
 
+## 🏷️ Versioning and Build Tags
+
+The application uses dynamic versioning to ensure that every binary and package is traceable to a specific point in the Git history. This is handled via the `Makefile` and Go's `-ldflags`.
+
+### How it works:
+1. **Dynamic Detection**: The `Makefile` runs `git describe --tags --always --dirty` to determine the current version.
+   - **Tagged Release**: If you are on a tag, the version is simply the tag name (e.g., `v0.2.0-beta`).
+   - **Dev Build**: If you are between tags, it includes the number of commits since the last tag and the short hash (e.g., `v0.1.4-beta-2-g1f0a536`).
+   - **Dirty State**: If you have unstaged changes, a `-dirty` suffix is appended, ensuring you know the build doesn't match a clean commit.
+2. **Binary Injection**: This version string is baked into the binary during compilation using:
+   ```bash
+   go build -ldflags="-X main.version=$(VERSION)"
+   ```
+3. **Traceability**: You can always see which exact version is running by checking the logs or the "Version" field in the system tray.
+
 ## 🏗️ Installation Methods: Local vs. System
 
 The project supports two distinct ways to install and run the application. Choosing the right one depends on your preference for system management.
