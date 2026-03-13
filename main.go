@@ -30,15 +30,18 @@ func main() {
 	interval := flag.Int("interval", 10, "Polling interval in seconds")
 	flag.Parse()
 
-	configDir, assetDir := getPaths()
+	configDir, assetDir, stateDir := getPaths()
+	logDir := filepath.Join(stateDir, "logs")
 
-	logDir := filepath.Join(configDir, "logs")
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating log directory: %v\n", err)
 	}
 
+	logPath := filepath.Join(logDir, "geforce_presence.log")
+	rotateLogs(logPath)
+
 	logFile, err := os.OpenFile(
-		filepath.Join(logDir, "geforce_presence.log"),
+		logPath,
 		os.O_CREATE|os.O_WRONLY|os.O_APPEND,
 		0644,
 	)
@@ -215,7 +218,7 @@ func main() {
 	log.Println("👋 GeForce NOW Rich Presence stopped")
 }
 
-func getPaths() (string, string) {
+func getPaths() (string, string, string) {
 	// 1. Determine Config Dir (Always writeable for state/settings)
 	xdgConfig := os.Getenv("XDG_CONFIG_HOME")
 	if xdgConfig == "" {
@@ -223,7 +226,14 @@ func getPaths() (string, string) {
 	}
 	userConfigDir := filepath.Join(xdgConfig, "geforcenow-presence")
 
-	// 2. Determine Asset Dir (lang files, shared resources)
+	// 2. Determine State Dir (For logs according to XDG spec)
+	xdgState := os.Getenv("XDG_STATE_HOME")
+	if xdgState == "" {
+		xdgState = filepath.Join(os.Getenv("HOME"), ".local", "state")
+	}
+	userStateDir := filepath.Join(xdgState, "geforcenow-presence")
+
+	// 3. Determine Asset Dir (lang files, shared resources)
 	// Priority:
 	// - Local install (next to binary / .local)
 	// - System install (/usr/share)
@@ -233,27 +243,41 @@ func getPaths() (string, string) {
 	exeDir := filepath.Dir(exe)
 	localLang := filepath.Join(exeDir, "lang")
 	if _, err := os.Stat(localLang); err == nil {
-		return userConfigDir, exeDir
+		return userConfigDir, exeDir, userStateDir
 	}
 
 	// Development check (running from repo root)
 	wd, _ := os.Getwd()
 	if _, err := os.Stat(filepath.Join(wd, "lang")); err == nil {
-		return userConfigDir, wd
+		return userConfigDir, wd, userStateDir
 	}
 
 	// User config check (installed via Makefile to ~/.config/geforcenow-presence/lang)
 	if _, err := os.Stat(filepath.Join(userConfigDir, "lang")); err == nil {
-		return userConfigDir, userConfigDir
+		return userConfigDir, userConfigDir, userStateDir
 	}
 
 	// System-wide install (/usr/share)
 	systemAssetDir := "/usr/share/geforcenow-presence"
 	if _, err := os.Stat(filepath.Join(systemAssetDir, "lang")); err == nil {
-		return userConfigDir, systemAssetDir
+		return userConfigDir, systemAssetDir, userStateDir
 	}
 
-	return userConfigDir, "."
+	return userConfigDir, ".", userStateDir
+}
+
+func rotateLogs(logPath string) {
+	info, err := os.Stat(logPath)
+	if err != nil {
+		return // File doesn't exist yet
+	}
+
+	// 10MB limit
+	const maxLogSize = 10 * 1024 * 1024
+	if info.Size() > maxLogSize {
+		rotatedPath := logPath + ".1"
+		_ = os.Rename(logPath, rotatedPath)
+	}
 }
 
 func acquireLock(lockFile string) bool {
