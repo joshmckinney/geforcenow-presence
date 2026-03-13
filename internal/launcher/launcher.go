@@ -86,6 +86,8 @@ func LaunchGFN() bool {
 		log.Printf("❌ Failed to launch GeForce NOW: %v", err)
 		return false
 	}
+	// Reap the process when it exits to avoid zombies
+	go cmd.Wait()
 	return true
 }
 
@@ -111,6 +113,8 @@ func LaunchDiscord() bool {
 				log.Printf("❌ Failed to launch Discord: %v", err)
 				return false
 			}
+			// Reap the process when it exits to avoid zombies
+			go cmd.Wait()
 			return true
 		}
 	}
@@ -121,5 +125,7 @@ func LaunchDiscord() bool {
 		log.Println("⚠️ Discord not found in standard locations or Flatpak")
 		return false
 	}
+	// Reap the process when it exits to avoid zombies
+	go cmd.Wait()
 	return true
 }
