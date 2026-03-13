@@ -10,11 +10,12 @@ import (
 
 // AppSettings represents the application settings.
 type AppSettings struct {
-	Language             string `json:"language"`
-	StartGFNOnLaunch     bool   `json:"start_gfn_on_launch"`
-	StartDiscordOnLaunch bool   `json:"start_discord_on_launch"`
+	Language             string            `json:"language"`
+	StartGFNOnLaunch     bool              `json:"start_gfn_on_launch"`
+	StartDiscordOnLaunch bool              `json:"start_discord_on_launch"`
 	PollingInterval      int               `json:"polling_interval"`
 	StartupDelay         int               `json:"startup_delay"`
+	EnableGameHistory    bool              `json:"enable_game_history"`
 	StatusColors         map[string]string `json:"status_colors"`
 }
 
@@ -37,6 +38,7 @@ func NewManager(configDir string) *Manager {
 			StartDiscordOnLaunch: false,
 			PollingInterval:      10,
 			StartupDelay:         5,
+			EnableGameHistory:    false,
 			StatusColors: map[string]string{
 				"playing":      "#2ecc71",
 				"waiting":      "#f1c40f",

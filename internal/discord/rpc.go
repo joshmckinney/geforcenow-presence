@@ -77,7 +77,7 @@ func (r *RPC) Connect() error {
 }
 
 // SetActivity updates the Discord Rich Presence activity.
-func (r *RPC) SetActivity(activity *Activity) error {
+func (r *RPC) SetActivity(pid int, activity *Activity) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -90,7 +90,7 @@ func (r *RPC) SetActivity(activity *Activity) error {
 		"cmd":   "SET_ACTIVITY",
 		"nonce": fmt.Sprintf("%d", r.nonce),
 		"args": map[string]interface{}{
-			"pid":      os.Getpid(),
+			"pid":      pid,
 			"activity": activity.toMap(),
 		},
 	}
@@ -107,7 +107,7 @@ func (r *RPC) SetActivity(activity *Activity) error {
 }
 
 // ClearActivity clears the Discord Rich Presence.
-func (r *RPC) ClearActivity() error {
+func (r *RPC) ClearActivity(pid int) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -120,7 +120,7 @@ func (r *RPC) ClearActivity() error {
 		"cmd":   "SET_ACTIVITY",
 		"nonce": fmt.Sprintf("%d", r.nonce),
 		"args": map[string]interface{}{
-			"pid": os.Getpid(),
+			"pid": pid,
 		},
 	}
 

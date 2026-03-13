@@ -29,5 +29,10 @@
     "launching_discord": "🚀 Lancement de Discord...",
     "lock_exists_running": "Une autre instance est en cours d'exécution",
     "tray_custom_prompt_interval": "Entrez l'intervalle de sondage en secondes :",
-    "tray_custom_prompt_delay": "Entrez le délai de démarrage en secondes :"
+    "tray_custom_prompt_delay": "Entrez le délai de démarrage en secondes :",
+    "config_enable_history": "Activer l'historique du jeu",
+    "tray_update_available": "Mise à jour disponible !",
+    "tray_update_to": "Version %s disponible",
+    "tray_check_updates": "Rechercher des mises à jour",
+    "update_up_to_date": "Vous utilisez la dernière version !"
 }

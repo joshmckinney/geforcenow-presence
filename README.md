@@ -30,6 +30,7 @@
 - 🚀 **Auto-start support** — systemd user service for background operation on login (toggleable via UI)
 - ⚙️ **Persistent Configuration** — Polling intervals, startup delays, and language settings are saved and easily editable via the System Tray.
 - 🎨 **Custom Status Colors** — Personalize your tray icon's "Playing", "Idle", and "Error" states via a built-in color picker.
+- 🛡️ **Optional Game History** — Capture Geforce NOW sessions in your Discord 30-day activity record via a specialized dummy-process launcher (disabled by default).
 - 🚀 **Update Checker** — Automatic background checks for new releases on startup + manual check button.
 - 📂 **Quick Access** — Open logs or configuration folders directly from the tray.
 - 🧩 **Multi-compositor support** — GNOME (Wayland), X11 (xprop/xdotool), Hyprland, with fallback chain

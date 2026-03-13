@@ -2,11 +2,13 @@ package presence
 
 import (
 	"log"
+	"os"
 	"time"
 
 	"github.com/joshmckinney/geforcenow-presence/internal/config"
 	"github.com/joshmckinney/geforcenow-presence/internal/detector"
 	"github.com/joshmckinney/geforcenow-presence/internal/discord"
+	"github.com/joshmckinney/geforcenow-presence/internal/launcher"
 	"github.com/joshmckinney/geforcenow-presence/internal/metadata"
 	"github.com/joshmckinney/geforcenow-presence/internal/ui"
 )
@@ -18,6 +20,7 @@ type Manager struct {
 	configMgr    *config.Manager
 	detector     *detector.Detector
 	appsCache    *discord.AppsCache
+	launcher     *launcher.DummyLauncher
 	rpc          *discord.RPC
 	interval     time.Duration
 	lastGame     string
@@ -26,6 +29,7 @@ type Manager struct {
 	overrideGame string
 	startTime    int64
 	lastLogMsg   string
+	dummyPID     int
 }
 
 // New creates a new presence manager.
@@ -34,6 +38,7 @@ func New(configMgr *config.Manager, det *detector.Detector, appsCache *discord.A
 		configMgr: configMgr,
 		detector:  det,
 		appsCache: appsCache,
+		launcher:  launcher.NewDummyLauncher(),
 		interval:  interval,
 	}
 }
@@ -120,6 +125,23 @@ func (m *Manager) check() {
 		if match != nil {
 			newClientID = match.ID
 			log.Printf("🔁 Found native Discord match: %s (client_id: %s)", match.Name, match.ID)
+
+			// If we have an executable name, start the dummy process (if enabled)
+			if match.Exe != "" && m.configMgr.GetSettings().EnableGameHistory {
+				pid, err := m.launcher.Start(match.Exe)
+				if err != nil {
+					log.Printf("⚠️ Failed to start dummy process: %v", err)
+					m.dummyPID = 0
+				} else {
+					m.dummyPID = pid
+				}
+			} else {
+				m.launcher.Stop()
+				m.dummyPID = 0
+			}
+		} else {
+			m.launcher.Stop()
+			m.dummyPID = 0
 		}
 
 		if m.lastClientID != newClientID && m.rpc != nil {
@@ -164,13 +186,18 @@ func (m *Manager) check() {
 			StartTime:  m.startTime,
 		}
 
-		if err := m.rpc.SetActivity(activity); err != nil {
+		pid := m.dummyPID
+		if pid == 0 {
+			pid = os.Getpid()
+		}
+
+		if err := m.rpc.SetActivity(pid, activity); err != nil {
 			log.Printf("❌ Error updating presence: %v", err)
 			log.Println("🔄 Discord connection lost or socket error, will reconnect...")
 			m.rpc.Close()
 			m.rpc = nil
 		} else {
-			log.Printf("✅ Discord Presence updated for: %s", gameName)
+			log.Printf("✅ Discord Presence updated for: %s (PID: %d)", gameName, pid)
 			ui.SetStatus("playing", gameName)
 		}
 	}
@@ -178,10 +205,18 @@ func (m *Manager) check() {
 
 func (m *Manager) clearPresence() {
 	if m.rpc != nil {
-		if err := m.rpc.ClearActivity(); err != nil {
+		pid := m.dummyPID
+		if pid == 0 {
+			pid = os.Getpid()
+		}
+		if err := m.rpc.ClearActivity(pid); err != nil {
 			log.Printf("⚠️ Error clearing presence: %v", err)
 		}
+		m.launcher.Stop()
+		m.dummyPID = 0
 	}
+	m.launcher.Stop()
+	m.dummyPID = 0
 }
 
 func (m *Manager) cleanup() {

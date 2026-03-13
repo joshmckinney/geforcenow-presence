@@ -37,7 +37,6 @@ func New() *Detector {
 	return d
 }
 
-// IsGFNRunning checks if the GeForce NOW Electron Flatpak is running.
 func (d *Detector) IsGFNRunning() bool {
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
@@ -52,8 +51,50 @@ func (d *Detector) IsGFNRunning() bool {
 		if err != nil {
 			continue
 		}
-		cmdStr := strings.ToLower(string(cmdline))
-		if strings.Contains(cmdStr, strings.ToLower(gfnProcessName)) && !strings.Contains(cmdStr, "geforcenow-presence") {
+
+		// cmdline uses null bytes as separators.
+		parts := strings.Split(string(cmdline), "\x00")
+		var cleanParts []string
+		for _, p := range parts {
+			if p != "" {
+				cleanParts = append(cleanParts, p)
+			}
+		}
+		if len(cleanParts) == 0 {
+			continue
+		}
+
+		exePath := cleanParts[0]
+		exeBase := filepath.Base(exePath)
+
+		// Check if it's a zygote/helper - they always have --type=... as an argument
+		isTypeArgument := false
+		for i := 1; i < len(cleanParts); i++ {
+			if strings.HasPrefix(cleanParts[i], "--type=") {
+				isTypeArgument = true
+				break
+			}
+		}
+
+		// Check for GeForceNOW main process
+		// Note: We used to require len(cleanParts) > 1 to avoid "ghost" processes,
+		// but it turns out the main launcher itself can sometimes have no arguments.
+		isGFNMain := strings.EqualFold(exeBase, gfnProcessName) && !isTypeArgument
+
+		// Check for Flatpak/bwrap wrapper
+		cmdStrForWrapper := strings.ToLower(string(cmdline))
+		isFlatpakWrapper := strings.Contains(cmdStrForWrapper, "com.nvidia.geforcenow") &&
+			(strings.Contains(exeBase, "flatpak") || strings.Contains(exeBase, "bwrap")) &&
+			!strings.Contains(strings.ToLower(exeBase), "spawn")
+
+		// Exclusions:
+		// 1. This application itself
+		// 2. The dummy process launcher directory
+		if isGFNMain || isFlatpakWrapper {
+			if strings.Contains(cmdStrForWrapper, "geforcenow-presence") ||
+				strings.Contains(cmdStrForWrapper, "geforcenow-presence-dummies") {
+				continue
+			}
 			return true
 		}
 	}

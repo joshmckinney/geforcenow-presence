@@ -29,5 +29,10 @@
     "launching_discord": "🚀 Discord wird gestartet...",
     "lock_exists_running": "Eine weitere Instanz läuft bereits",
     "tray_custom_prompt_interval": "Abfrageintervall in Sekunden eingeben:",
-    "tray_custom_prompt_delay": "Startverzögerung in Sekunden eingeben:"
+    "tray_custom_prompt_delay": "Startverzögerung in Sekunden eingeben:",
+    "config_enable_history": "Spielverlauf aktivieren",
+    "tray_update_available": "Update verfügbar!",
+    "tray_update_to": "Version %s verfügbar",
+    "tray_check_updates": "Nach Updates suchen",
+    "update_up_to_date": "Sie verwenden die neueste Version!"
 }

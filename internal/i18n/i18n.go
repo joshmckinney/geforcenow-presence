@@ -75,7 +75,7 @@ func GetAvailableLanguages(langDir string) map[string]string {
 		if !f.IsDir() && strings.HasSuffix(f.Name(), ".json") {
 			code := strings.TrimSuffix(f.Name(), ".json")
 			path := filepath.Join(langDir, f.Name())
-			
+
 			data, err := os.ReadFile(path)
 			if err != nil {
 				continue

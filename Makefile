@@ -16,7 +16,7 @@ DESKTOPDIR  = $(HOME)/.local/share/applications
 all: build
 
 build:
-	CGO_CFLAGS="-w" go build -ldflags="-s -w -X main.version=$(VERSION)" -o $(BINARY) .
+	CGO_CFLAGS="-w -Wno-deprecated-declarations" go build -ldflags="-s -w -X main.version=$(VERSION)" -o $(BINARY) .
 
 clean:
 	rm -f $(BINARY)

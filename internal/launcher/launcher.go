@@ -10,7 +10,6 @@ import (
 
 const gfnFlatpakID = "com.nvidia.geforcenow"
 
-// IsProcessRunning checks if a process with the given name substring is running.
 func IsProcessRunning(nameSubstr string) bool {
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
@@ -29,8 +28,45 @@ func IsProcessRunning(nameSubstr string) bool {
 			continue
 		}
 
-		cmdlineStr := strings.ToLower(string(cmdline))
-		if strings.Contains(cmdlineStr, nameL) && !strings.Contains(cmdlineStr, "geforcenow-presence") {
+		parts := strings.Split(string(cmdline), "\x00")
+		var cleanParts []string
+		for _, p := range parts {
+			if p != "" {
+				cleanParts = append(cleanParts, p)
+			}
+		}
+		if len(cleanParts) == 0 {
+			continue
+		}
+
+		exeBase := strings.ToLower(filepath.Base(cleanParts[0]))
+		cmdlineStr := strings.ToLower(strings.Join(cleanParts, " "))
+
+		// Check if it's a helper process (zygote, etc.)
+		isHelper := false
+		for i := 1; i < len(cleanParts); i++ {
+			if strings.HasPrefix(cleanParts[i], "--type=") {
+				isHelper = true
+				break
+			}
+		}
+
+		// Tight match on the binary name or generic substring match for flatpaks
+		var matches bool
+		if nameL == "geforcenow" {
+			// Special handling for GFN to ignore zygotes/helpers
+			matches = (exeBase == "geforcenow" && !isHelper) ||
+				(strings.Contains(cmdlineStr, "com.nvidia.geforcenow") &&
+					(strings.Contains(exeBase, "flatpak") || strings.Contains(exeBase, "bwrap")) &&
+					!strings.Contains(exeBase, "spawn"))
+		} else {
+			// Also check cmdlineStr to catch /proc/self/exe or other shells
+			matches = strings.Contains(exeBase, nameL) || strings.Contains(cmdlineStr, nameL)
+		}
+
+		if matches &&
+			!strings.Contains(cmdlineStr, "geforcenow-presence") &&
+			!strings.Contains(cmdlineStr, "geforcenow-presence-dummies") {
 			return true
 		}
 	}
@@ -40,7 +76,7 @@ func IsProcessRunning(nameSubstr string) bool {
 // LaunchGFN starts the GeForce NOW Electron Flatpak.
 func LaunchGFN() bool {
 	if IsProcessRunning("GeForceNOW") {
-		log.Println("💡 GeForce NOW is already running")
+		log.Println("💡 GeForce NOW is already running (launch skipped)")
 		return true
 	}
 
@@ -50,13 +86,19 @@ func LaunchGFN() bool {
 		log.Printf("❌ Failed to launch GeForce NOW: %v", err)
 		return false
 	}
+	// Reap the process when it exits to avoid zombies
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			log.Printf("ℹ️ GeForce NOW process exited: %v", err)
+		}
+	}()
 	return true
 }
 
 // LaunchDiscord starts Discord.
 func LaunchDiscord() bool {
 	if IsProcessRunning("Discord") {
-		log.Println("💡 Discord is already running")
+		log.Println("💡 Discord is already running (launch skipped)")
 		return true
 	}
 
@@ -75,6 +117,12 @@ func LaunchDiscord() bool {
 				log.Printf("❌ Failed to launch Discord: %v", err)
 				return false
 			}
+			// Reap the process when it exits to avoid zombies
+			go func() {
+				if err := cmd.Wait(); err != nil {
+					log.Printf("ℹ️ Discord process exited: %v", err)
+				}
+			}()
 			return true
 		}
 	}
@@ -85,5 +133,11 @@ func LaunchDiscord() bool {
 		log.Println("⚠️ Discord not found in standard locations or Flatpak")
 		return false
 	}
+	// Reap the process when it exits to avoid zombies
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			log.Printf("ℹ️ Discord process exited: %v", err)
+		}
+	}()
 	return true
 }

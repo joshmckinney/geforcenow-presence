@@ -138,6 +138,16 @@ func main() {
 				openConfigDir(configDir)
 			case val := <-uiActs.ToggleAutoStart:
 				toggleAutoStart(val)
+			case val := <-uiActs.ToggleGameHistory:
+				s := configMgr.GetSettings()
+				s.EnableGameHistory = val
+				configMgr.SetSettings(s)
+				log.Printf("🛡️ Game History support %s", func() string {
+					if val {
+						return "enabled"
+					}
+					return "disabled"
+				}())
 			case <-uiActs.UpdateClicked:
 				openURL(updater.GetReleasesURL())
 			case colors := <-uiActs.SetColor:
@@ -164,7 +174,7 @@ func main() {
 					}
 				}()
 			}
-	}
+		}
 	}()
 
 	// Background Update check
@@ -214,7 +224,7 @@ func getPaths() (string, string) {
 	userConfigDir := filepath.Join(xdgConfig, "geforcenow-presence")
 
 	// 2. Determine Asset Dir (lang files, shared resources)
-	// Priority: 
+	// Priority:
 	// - Local install (next to binary / .local)
 	// - System install (/usr/share)
 

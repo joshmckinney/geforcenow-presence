@@ -9,25 +9,26 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/getlantern/systray"
 	"github.com/joshmckinney/geforcenow-presence/internal/config"
 	"github.com/joshmckinney/geforcenow-presence/internal/i18n"
-	"github.com/getlantern/systray"
 )
 
 // Actions represents the tray actions sent back to main
 type Actions struct {
-	OverrideChan     chan string
-	ToggleConfigGFN  chan bool
-	ToggleConfigDisc chan bool
-	ChangeLanguage   chan string
-	SetInterval      chan int
-	SetDelay         chan int
-	OpenConfigDir    chan struct{}
-	ToggleAutoStart  chan bool
-	UpdateClicked    chan struct{}
-	CheckUpdates     chan struct{}
-	SetColor         chan map[string]string
-	QuitChan         chan struct{}
+	OverrideChan      chan string
+	ToggleConfigGFN   chan bool
+	ToggleConfigDisc  chan bool
+	ChangeLanguage    chan string
+	SetInterval       chan int
+	SetDelay          chan int
+	OpenConfigDir     chan struct{}
+	ToggleAutoStart   chan bool
+	ToggleGameHistory chan bool
+	UpdateClicked     chan struct{}
+	CheckUpdates      chan struct{}
+	SetColor          chan map[string]string
+	QuitChan          chan struct{}
 }
 
 var acts Actions
@@ -45,18 +46,19 @@ func StartTray(mgr *config.Manager, langDir, version string) Actions {
 	sysLangDir = langDir
 	appVersion = version
 	acts = Actions{
-		OverrideChan:     make(chan string, 1),
-		ToggleConfigGFN:  make(chan bool, 1),
-		ToggleConfigDisc: make(chan bool, 1),
-		ChangeLanguage:   make(chan string, 1),
-		SetInterval:      make(chan int, 1),
-		SetDelay:         make(chan int, 1),
-		OpenConfigDir:    make(chan struct{}, 1),
-		ToggleAutoStart:  make(chan bool, 1),
-		UpdateClicked:    make(chan struct{}, 1),
-		CheckUpdates:     make(chan struct{}, 1),
-		SetColor:         make(chan map[string]string, 1),
-		QuitChan:         make(chan struct{}),
+		OverrideChan:      make(chan string, 1),
+		ToggleConfigGFN:   make(chan bool, 1),
+		ToggleConfigDisc:  make(chan bool, 1),
+		ChangeLanguage:    make(chan string, 1),
+		SetInterval:       make(chan int, 1),
+		SetDelay:          make(chan int, 1),
+		OpenConfigDir:     make(chan struct{}, 1),
+		ToggleAutoStart:   make(chan bool, 1),
+		ToggleGameHistory: make(chan bool, 1),
+		UpdateClicked:     make(chan struct{}, 1),
+		CheckUpdates:      make(chan struct{}, 1),
+		SetColor:          make(chan map[string]string, 1),
+		QuitChan:          make(chan struct{}),
 	}
 	go systray.Run(onReady, onExit)
 	return acts
@@ -127,9 +129,9 @@ func onReady() {
 	if currLang == "" {
 		currLang = i18n.DetectLanguage("")
 	}
-	
+
 	langs := i18n.GetAvailableLanguages(sysLangDir)
-	
+
 	type langItem struct {
 		code string
 		name string
@@ -144,7 +146,7 @@ func onReady() {
 
 	for _, l := range sortedLangs {
 		item := mLanguage.AddSubMenuItemCheckbox(l.name, "", currLang == l.code)
-		
+
 		go func(menuItem *systray.MenuItem, langCode string) {
 			for range menuItem.ClickedCh {
 				if !menuItem.Checked() {
@@ -170,6 +172,7 @@ func onReady() {
 	mErrCol := mColors.AddSubMenuItem(i18n.T("tray_color_error", "Error Color..."), "")
 
 	mAutoStart := mConfig.AddSubMenuItemCheckbox(i18n.T("tray_auto_start", "Auto-start on Login"), "", isAutoStartEnabled())
+	mHistory := mConfig.AddSubMenuItemCheckbox(i18n.T("config_enable_history", "Enable Game History (30-day log)"), "", configMgr.GetSettings().EnableGameHistory)
 
 	mCheck := systray.AddMenuItem(i18n.T("tray_check_updates", "Check for Updates"), "")
 	systray.AddSeparator()
@@ -227,6 +230,14 @@ func onReady() {
 					mAutoStart.Uncheck()
 				}
 				acts.ToggleAutoStart <- val
+			case <-mHistory.ClickedCh:
+				val := !mHistory.Checked()
+				if val {
+					mHistory.Check()
+				} else {
+					mHistory.Uncheck()
+				}
+				acts.ToggleGameHistory <- val
 			case <-mUpdate.ClickedCh:
 				acts.UpdateClicked <- struct{}{}
 			case <-mPlayCol.ClickedCh:

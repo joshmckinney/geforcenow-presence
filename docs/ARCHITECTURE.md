@@ -45,3 +45,9 @@ Instead of requiring OAuth developer accounts and uploading static PNG assets to
 To fool Discord into natively parsing the game as a recognized application (so it shows up properly in mutual servers and on your user profile), it pulls down a backend cached list of Discord's *Official Desktop App Client IDs* (`detectable_applications.json`).
 
 The Go daemon fuzzy-matches your current window title against the top 20,000 Client IDs. When it finds a match, it instantiates its IPC socket connection *as* that Client ID, tricking Discord into native game integrations with live-updating art.
+
+### 6. Optional Game History (Process Spoofing)
+Discord's 30-day "Game History" record requires detecting a local process matching the game's executable name. To support this on Linux/GFN (where no local game process exists):
+1. **Dynamic Metadata:** The agent fetches the expected executable name (e.g., `cs2.exe`) directly from the native Discord app record.
+2. **Dummy Process:** If `EnableGameHistory` is enabled, the agent launches a light, long-running dummy process (using a system utility like `tail` or `sleep`) renamed to the target executable name in a temporary directory.
+3. **PID Handshake:** The PID of this dummy process is passed to the Discord RPC. Discord validates the running process, causing the session to be recorded in the user's activity history.

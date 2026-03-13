@@ -83,7 +83,7 @@ func TestGetAvailableLanguages(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(tmpDir, "en.json"), []byte(enData), 0644); err != nil {
 		t.Fatalf("Failed to write mock config: %v", err)
 	}
-	
+
 	langNoName := `{"key": "value"}`
 	if err := os.WriteFile(filepath.Join(tmpDir, "de.json"), []byte(langNoName), 0644); err != nil {
 		t.Fatalf("Failed to write mock config: %v", err)
