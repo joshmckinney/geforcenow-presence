@@ -9,6 +9,7 @@ CONFIGDIR   = $(HOME)/.config/geforcenow-presence
 EXTDIR      = $(HOME)/.local/share/gnome-shell/extensions/window-title-server@geforcenow-presence
 SERVICEDIR  = $(HOME)/.config/systemd/user
 DESKTOPDIR  = $(HOME)/.local/share/applications
+STATEDIR    = $(HOME)/.local/state/geforcenow-presence
 
 .PHONY: all build clean test install uninstall enable disable restart status release docker-release
 
@@ -41,7 +42,6 @@ install: build
 	@# Config files (only if not already present)
 	install -d $(CONFIGDIR)
 	@test -f $(CONFIGDIR)/app_settings.json || cp config/app_settings.json $(CONFIGDIR)/
-	@test -d $(CONFIGDIR)/lang || cp -r lang $(CONFIGDIR)/
 	@echo "✅ Config files at $(CONFIGDIR)"
 
 	@# GNOME Shell extension
@@ -107,8 +107,8 @@ uninstall:
 	@# Reload systemd
 	-systemctl --user daemon-reload 2>/dev/null
 
-	@echo "✅ Uninstalled (config files kept at $(CONFIGDIR))"
-	@echo "   To remove config too: rm -rf $(CONFIGDIR)"
+	@echo "✅ Uninstalled (config/state files kept at $(CONFIGDIR) and $(STATEDIR))"
+	@echo "   To remove all data: rm -rf $(CONFIGDIR) $(STATEDIR)"
 
 # ─── Service shortcuts ──────────────────────────────────────────────
 enable:

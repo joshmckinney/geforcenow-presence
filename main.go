@@ -31,13 +31,11 @@ func main() {
 	flag.Parse()
 
 	configDir, assetDir, stateDir := getPaths()
-	logDir := filepath.Join(stateDir, "logs")
-
-	if err := os.MkdirAll(logDir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating log directory: %v\n", err)
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating state directory: %v\n", err)
 	}
 
-	logPath := filepath.Join(logDir, "geforce_presence.log")
+	logPath := filepath.Join(stateDir, "geforce_presence.log")
 	rotateLogs(logPath)
 
 	logFile, err := os.OpenFile(
@@ -68,7 +66,7 @@ func main() {
 	}
 	defer releaseLock(lockFile)
 
-	configMgr := config.NewManager(configDir)
+	configMgr := config.NewManager(configDir, stateDir)
 	settings := configMgr.GetSettings()
 	ui.RebuildIcons(settings.StatusColors)
 
@@ -190,7 +188,7 @@ func main() {
 		}
 	}()
 
-	cacheFile := filepath.Join(configDir, "discord_apps_cache.json")
+	cacheFile := filepath.Join(stateDir, "discord_apps_cache.json")
 	appsCache := discord.NewAppsCache(cacheFile)
 
 	pInterval := *interval
@@ -237,30 +235,39 @@ func getPaths() (string, string, string) {
 	// Priority:
 	// - Local install (next to binary / .local)
 	// - System install (/usr/share)
+	// - User data/config fallbacks
 
-	// Local check (installed via make install or running from source)
+	// Check next to executable (portable/local install)
 	exe, _ := os.Executable()
 	exeDir := filepath.Dir(exe)
-	localLang := filepath.Join(exeDir, "lang")
-	if _, err := os.Stat(localLang); err == nil {
+	if _, err := os.Stat(filepath.Join(exeDir, "lang")); err == nil {
 		return userConfigDir, exeDir, userStateDir
 	}
 
-	// Development check (running from repo root)
+	// Check for system-wide install (/usr/share)
+	systemAssetDir := "/usr/share/geforcenow-presence"
+	if _, err := os.Stat(filepath.Join(systemAssetDir, "lang")); err == nil {
+		return userConfigDir, systemAssetDir, userStateDir
+	}
+
+	// Check for user-level data dir (~/.local/share)
+	xdgData := os.Getenv("XDG_DATA_HOME")
+	if xdgData == "" {
+		xdgData = filepath.Join(os.Getenv("HOME"), ".local", "share", "geforcenow-presence")
+	} else {
+		xdgData = filepath.Join(xdgData, "geforcenow-presence")
+	}
+	if _, err := os.Stat(filepath.Join(xdgData, "lang")); err == nil {
+		return userConfigDir, xdgData, userStateDir
+	}
+
+	// Development/Legacy fallback (repo root or config dir)
 	wd, _ := os.Getwd()
 	if _, err := os.Stat(filepath.Join(wd, "lang")); err == nil {
 		return userConfigDir, wd, userStateDir
 	}
-
-	// User config check (installed via Makefile to ~/.config/geforcenow-presence/lang)
 	if _, err := os.Stat(filepath.Join(userConfigDir, "lang")); err == nil {
 		return userConfigDir, userConfigDir, userStateDir
-	}
-
-	// System-wide install (/usr/share)
-	systemAssetDir := "/usr/share/geforcenow-presence"
-	if _, err := os.Stat(filepath.Join(systemAssetDir, "lang")); err == nil {
-		return userConfigDir, systemAssetDir, userStateDir
 	}
 
 	return userConfigDir, ".", userStateDir

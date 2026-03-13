@@ -84,7 +84,8 @@ Install using your package manager (e.g., `sudo dnf install ./geforcenow-presenc
 | Component | Location | Purpose |
 |:---|:---|:---|
 | **Binary** | `~/.local/bin/geforcenow-presence` | The compiled Go executable |
-| **Config** | `~/.config/geforcenow-presence/` | `app_settings.json` and local cache files, `lang/` |
+| **Config** | `~/.config/geforcenow-presence/` | `app_settings.json` and language files |
+| **Logs/State** | `~/.local/state/geforcenow-presence/` | `geforce_presence.log` and cached data |
 | **GNOME Extension** | `~/.local/share/gnome-shell/extensions/window-title-server@geforcenow-presence/` | Reads Wayland-native window titles via D-Bus |
 | **Systemd Service** | `~/.config/systemd/user/geforcenow-presence.service` | Runs the binary as a background daemon on login |
 | **Desktop Entry** | `~/.local/share/applications/geforcenow-presence.desktop` | Shows in application launcher |

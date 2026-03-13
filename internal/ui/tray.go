@@ -176,7 +176,7 @@ func onReady() {
 
 	mCheck := systray.AddMenuItem(i18n.T("tray_check_updates", "Check for Updates"), "")
 	systray.AddSeparator()
-	mVersion := systray.AddMenuItem(appVersion, "")
+	mVersion := systray.AddMenuItem(fmt.Sprintf(i18n.T("tray_version", "Version: %s"), appVersion), "")
 	mVersion.Disable()
 	mExit := systray.AddMenuItem(i18n.T("tray_exit", "Exit"), "")
 
@@ -334,7 +334,7 @@ func openLogs() {
 	if configMgr == nil {
 		return
 	}
-	logFile := filepath.Join(configMgr.GetConfigDir(), "logs", "geforce_presence.log")
+	logFile := filepath.Join(configMgr.GetStateDir(), "geforce_presence.log")
 	if err := exec.Command("xdg-open", logFile).Start(); err != nil {
 		log.Printf("❌ Failed to open log file: %v", err)
 	}

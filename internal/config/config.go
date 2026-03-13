@@ -23,14 +23,16 @@ type AppSettings struct {
 type Manager struct {
 	mu              sync.RWMutex
 	configDir       string
+	stateDir        string
 	appSettings     AppSettings
 	appSettingsPath string
 }
 
 // NewManager creates a new config manager.
-func NewManager(configDir string) *Manager {
+func NewManager(configDir string, stateDir string) *Manager {
 	m := &Manager{
 		configDir:       configDir,
+		stateDir:        stateDir,
 		appSettingsPath: filepath.Join(configDir, "app_settings.json"),
 		appSettings: AppSettings{
 			Language:             "",
@@ -78,6 +80,11 @@ func (m *Manager) load() {
 }
 
 func (m *Manager) saveAppSettings() {
+	if err := os.MkdirAll(m.configDir, 0755); err != nil {
+		log.Printf("❌ Error creating config directory: %v", err)
+		return
+	}
+
 	data, err := json.MarshalIndent(m.appSettings, "", "    ")
 	if err != nil {
 		log.Printf("❌ Error marshaling app settings: %v", err)
@@ -91,6 +98,11 @@ func (m *Manager) saveAppSettings() {
 // GetConfigDir returns the base configuration directory path.
 func (m *Manager) GetConfigDir() string {
 	return m.configDir
+}
+
+// GetStateDir returns the base state directory path.
+func (m *Manager) GetStateDir() string {
+	return m.stateDir
 }
 
 // GetSettings returns a copy of the current app settings.
