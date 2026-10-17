@@ -3,6 +3,7 @@ package detector
 import (
 	"bufio"
 	"embed"
+	"encoding/json"
 	"log"
 	"os"
 	"os/exec"
@@ -166,7 +167,7 @@ func cleanTitle(title string) string {
 
 // getGFNWindowTitle tries methods in order of reliability on Wayland.
 func (d *Detector) getGFNWindowTitle() string {
-	// Method 1: Our GNOME Shell extension D-Bus (Wayland native, most reliable)
+	// Method 1: Our GNOME Shell extension D-Bus (Wayland native, most reliable on GNOME)
 	if d.extensionReady {
 		if title := d.getGFNTitleExtension(); title != "" {
 			if d.lastMethod != "extension" {
@@ -177,25 +178,16 @@ func (d *Detector) getGFNWindowTitle() string {
 		}
 	}
 
-	// Method 2: xprop (XWayland / X11)
-	if title := d.getGFNTitleXprop(); title != "" {
-		if d.lastMethod != "xprop" {
-			log.Println("🔍 Window detection: using xprop")
-			d.lastMethod = "xprop"
+	// Method 2: Niri IPC (Wayland native on Niri)
+	if title := d.getGFNTitleNiri(); title != "" {
+		if d.lastMethod != "niri" {
+			log.Println("🔍 Window detection: using Niri IPC")
+			d.lastMethod = "niri"
 		}
 		return title
 	}
 
-	// Method 3: xdotool (X11)
-	if title := d.getGFNTitleXdotool(); title != "" {
-		if d.lastMethod != "xdotool" {
-			log.Println("🔍 Window detection: using xdotool")
-			d.lastMethod = "xdotool"
-		}
-		return title
-	}
-
-	// Method 4: Hyprland IPC
+	// Method 3: Hyprland IPC (Wayland native on Hyprland)
 	if title := d.getGFNTitleHyprland(); title != "" {
 		if d.lastMethod != "hyprland" {
 			log.Println("🔍 Window detection: using Hyprland IPC")
@@ -204,24 +196,48 @@ func (d *Detector) getGFNWindowTitle() string {
 		return title
 	}
 
+	// Method 4: xprop (XWayland / X11)
+	if title := d.getGFNTitleXprop(); title != "" {
+		if d.lastMethod != "xprop" {
+			log.Println("🔍 Window detection: using xprop")
+			d.lastMethod = "xprop"
+		}
+		return title
+	}
+
+	// Method 5: xdotool (X11)
+	if title := d.getGFNTitleXdotool(); title != "" {
+		if d.lastMethod != "xdotool" {
+			log.Println("🔍 Window detection: using xdotool")
+			d.lastMethod = "xdotool"
+		}
+		return title
+	}
+
 	// If no method worked and extension wasn't ready, remind user
 	if !d.extensionReady && d.lastMethod != "none" {
-		log.Println("⚠️ Cannot detect GFN window title. Please log out and back in to activate the GNOME Shell extension, then restart this program.")
+		if isGNOME() {
+			log.Println("⚠️ Cannot detect GFN window title. Please log out and back in to activate the GNOME Shell extension, then restart this program.")
+		} else {
+			log.Println("⚠️ Cannot detect GFN window title yet (waiting for an active GeForce NOW window).")
+		}
 		d.lastMethod = "none"
 	}
 
 	return ""
 }
 
+func isGNOME() bool {
+	if desktop := os.Getenv("XDG_CURRENT_DESKTOP"); desktop != "" {
+		return strings.Contains(strings.ToLower(desktop), "gnome")
+	}
+	return strings.Contains(strings.ToLower(os.Getenv("DESKTOP_SESSION")), "gnome")
+}
+
 // ensureExtension installs and enables the GNOME Shell extension.
 func (d *Detector) ensureExtension() {
 	// Only relevant on GNOME
-	if os.Getenv("XDG_CURRENT_DESKTOP") == "" {
-		desktop := os.Getenv("DESKTOP_SESSION")
-		if !strings.Contains(strings.ToLower(desktop), "gnome") {
-			return
-		}
-	} else if !strings.Contains(strings.ToLower(os.Getenv("XDG_CURRENT_DESKTOP")), "gnome") {
+	if !isGNOME() {
 		return
 	}
 
@@ -383,6 +399,62 @@ func (d *Detector) getGFNTitleXdotool() string {
 		}
 	}
 	return ""
+}
+
+type niriWindow struct {
+	Title string `json:"title"`
+	AppID string `json:"app_id"`
+}
+
+// getGFNTitleNiri uses Niri's IPC CLI (`niri msg -j windows`).
+func (d *Detector) getGFNTitleNiri() string {
+	socket := os.Getenv("NIRI_SOCKET")
+	if socket == "" {
+		runtimeDir := os.Getenv("XDG_RUNTIME_DIR")
+		if runtimeDir != "" {
+			if matches, err := filepath.Glob(filepath.Join(runtimeDir, "niri.*.sock")); err == nil && len(matches) > 0 {
+				socket = matches[0]
+			}
+		}
+	}
+	if socket == "" {
+		return ""
+	}
+
+	cmd := exec.Command("niri", "msg", "-j", "windows")
+	cmd.Env = append(os.Environ(), "NIRI_SOCKET="+socket)
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+
+	return parseNiriWindowsJSON(out)
+}
+
+func parseNiriWindowsJSON(data []byte) string {
+	var windows []niriWindow
+	if err := json.Unmarshal(data, &windows); err != nil {
+		return ""
+	}
+
+	var fallback string
+	for _, w := range windows {
+		appID := strings.ToLower(w.AppID)
+		if (!strings.Contains(appID, "geforce") && !strings.Contains(appID, "geforcenow")) || strings.Contains(appID, "geforcenow-presence") {
+			continue
+		}
+		title := strings.TrimSpace(w.Title)
+		if title == "" {
+			continue
+		}
+		if cleanTitle(title) != "" {
+			return title
+		}
+		if fallback == "" {
+			fallback = title
+		}
+	}
+	return fallback
 }
 
 // getGFNTitleHyprland uses Hyprland's IPC.

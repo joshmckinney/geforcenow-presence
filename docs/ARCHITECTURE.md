@@ -20,10 +20,12 @@
 ### 1. Process Detection
 A local Linux timer loop scans `/proc` looking for a running `GeForceNOW` background process. The frequency is persistent and configurable (5s - 60s) via the "Polling Interval" menu in the System Tray or the `--interval` flag. These settings are stored in `app_settings.json`.
 
-### 2. Window Title Scraping (Local System D-Bus)
-Because Wayland completely isolates applications from reading each other's window titles natively, the application utilizes a tiny generic GNOME Shell extension (`window-title-server@geforcenow-presence`). 
-
-This extension exposes a custom local system D-Bus method allowing the Go monitor to securely query the name of the currently active window. (It also supports fallback mechanisms using `xprop`/`xdotool` on X11 compositors).
+### 2. Window Title Scraping (Wayland IPC / D-Bus)
+Because Wayland isolates applications from reading each other's window titles directly, the application supports multiple compositor-native backends:
+- **GNOME**: Utilizes a tiny GNOME Shell extension (`window-title-server@geforcenow-presence`) exposing a session D-Bus method.
+- **Niri**: Queries `niri msg -j windows` via `NIRI_SOCKET` IPC.
+- **Hyprland**: Queries `hyprctl clients -j` via Hyprland IPC.
+- **X11 / XWayland**: Fallback mechanisms using `xprop` and `xdotool`.
 
 ### 3. Name Sanitizing
 GeForce NOW usually appends `" on GeForce NOW"` along with copyright strings. The application deeply cleans the query using regex matches to yield a clean string (e.g. "Cyberpunk 2077").
