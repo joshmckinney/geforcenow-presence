@@ -6,6 +6,7 @@ LDFLAGS     = -ldflags="-s -w -X main.version=$(VERSION)"
 PREFIX      ?= $(HOME)/.local
 BINDIR      = $(PREFIX)/bin
 CONFIGDIR   = $(HOME)/.config/geforcenow-presence
+DATADIR     = $(HOME)/.local/share/geforcenow-presence
 EXTDIR      = $(HOME)/.local/share/gnome-shell/extensions/window-title-server@geforcenow-presence
 SERVICEDIR  = $(HOME)/.config/systemd/user
 DESKTOPDIR  = $(HOME)/.local/share/applications
@@ -43,6 +44,11 @@ install: build
 	install -d $(CONFIGDIR)
 	@test -f $(CONFIGDIR)/app_settings.json || cp config/app_settings.json $(CONFIGDIR)/
 	@echo "✅ Config files at $(CONFIGDIR)"
+
+	@# Shared assets (lang files)
+	install -d $(DATADIR)/lang
+	install -m644 lang/*.json $(DATADIR)/lang/
+	@echo "✅ Language files installed to $(DATADIR)/lang"
 
 	@# GNOME Shell extension
 	install -d $(EXTDIR)
@@ -99,6 +105,7 @@ uninstall:
 
 	@# Remove files
 	rm -f  $(BINDIR)/$(BINARY)
+	rm -rf $(DATADIR)
 	rm -f  $(SERVICEDIR)/$(BINARY).service
 	rm -f  $(DESKTOPDIR)/$(BINARY).desktop
 	rm -rf $(EXTDIR)
