@@ -228,10 +228,16 @@ func (d *Detector) getGFNWindowTitle() string {
 }
 
 func isGNOME() bool {
-	if desktop := os.Getenv("XDG_CURRENT_DESKTOP"); desktop != "" {
-		return strings.Contains(strings.ToLower(desktop), "gnome")
+	if os.Getenv("NIRI_SOCKET") != "" || os.Getenv("HYPRLAND_INSTANCE_SIGNATURE") != "" {
+		return false
 	}
-	return strings.Contains(strings.ToLower(os.Getenv("DESKTOP_SESSION")), "gnome")
+	if session := strings.ToLower(os.Getenv("XDG_SESSION_DESKTOP")); session != "" {
+		return strings.Contains(session, "gnome")
+	}
+	if desktop := strings.ToLower(os.Getenv("DESKTOP_SESSION")); desktop != "" {
+		return strings.Contains(desktop, "gnome")
+	}
+	return strings.Contains(strings.ToLower(os.Getenv("XDG_CURRENT_DESKTOP")), "gnome")
 }
 
 // ensureExtension installs and enables the GNOME Shell extension.

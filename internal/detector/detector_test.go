@@ -51,3 +51,22 @@ func TestParseNiriWindowsJSON_IgnoresNonGFNAndInvalid(t *testing.T) {
 		t.Fatalf("expected empty title for invalid JSON, got %q", got)
 	}
 }
+
+func TestIsGNOME(t *testing.T) {
+	t.Setenv("NIRI_SOCKET", "/run/user/1000/niri.wayland-1.sock")
+	t.Setenv("XDG_SESSION_DESKTOP", "niri")
+	t.Setenv("DESKTOP_SESSION", "niri")
+	t.Setenv("XDG_CURRENT_DESKTOP", "niri:GNOME")
+	if isGNOME() {
+		t.Fatalf("expected isGNOME() = false when running on Niri with XDG_CURRENT_DESKTOP=niri:GNOME")
+	}
+
+	t.Setenv("NIRI_SOCKET", "")
+	t.Setenv("HYPRLAND_INSTANCE_SIGNATURE", "")
+	t.Setenv("XDG_SESSION_DESKTOP", "gnome")
+	t.Setenv("DESKTOP_SESSION", "gnome")
+	t.Setenv("XDG_CURRENT_DESKTOP", "GNOME")
+	if !isGNOME() {
+		t.Fatalf("expected isGNOME() = true on GNOME session")
+	}
+}
