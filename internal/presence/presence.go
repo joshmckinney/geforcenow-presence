@@ -89,7 +89,7 @@ func (m *Manager) check() {
 		m.logOnce("⚠️ GeForce NOW is not running")
 		return
 	}
-	
+
 	// Check if Discord is running
 	if !launcher.IsProcessRunning("Discord") {
 		if m.rpc != nil {

@@ -33,7 +33,7 @@
 - 🛡️ **Optional Game History** — Capture Geforce NOW sessions in your Discord 30-day activity record via a specialized dummy-process launcher (disabled by default).
 - 🚀 **Update Checker** — Automatic background checks for new releases on startup + manual check button.
 - 📂 **Quick Access** — Open logs or configuration folders directly from the tray.
-- 🧩 **Multi-compositor support** — GNOME (Wayland), X11 (xprop/xdotool), Hyprland, with fallback chain
+- 🧩 **Multi-compositor support** — GNOME (Wayland), Niri, Hyprland, X11 (xprop/xdotool), with fallback chain
 - 🔒 **Single instance** — lock file prevents duplicate processes
 - 🌐 **i18n** — locale detection with language files in `lang/`
 
@@ -48,7 +48,7 @@
 | **Discord** | Native install (RPM/DEB) or Flatpak |
 | **Go** | 1.25+ (build only — not needed to run the binary) |
 | **Build Dependencies** | `libayatana-appindicator3-dev` (Debian/Ubuntu) or `libayatana-appindicator-gtk3-devel` (Fedora/RHEL)<br>`libgtk-3-dev` (Debian/Ubuntu) or `gtk3-devel` (Fedora/RHEL) |
-| **Desktop** | GNOME on Wayland (primary), X11, Hyprland (experimental) |
+| **Desktop** | GNOME on Wayland, Niri, Hyprland, X11 |
 
 > **Note:** Running GeForce NOW via Chrome/Edge browser is **not currently supported** — only the official Flatpak app. Browser support could be added by detecting the browser window title similarly.
 
